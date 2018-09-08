@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  vars_files:
+    - ./local-user.yaml
+  tasks:
+  - name: Create ssh key for local user
+    user:
+      name: "{{user}}"
+      generate_ssh_key: yes
