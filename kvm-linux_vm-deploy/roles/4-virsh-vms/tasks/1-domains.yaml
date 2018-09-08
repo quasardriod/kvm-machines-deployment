@@ -1,0 +1,23 @@
+---
+
+- name: Create directory to store temp files
+  file:
+    path: /var/tmp/k8s-vms
+    state: directory
+    mode: 0755
+    owner: stack
+    group: stack
+
+- name: Get domain names
+  shell: virsh list|grep -i k8s|grep -i running|awk '{print $2}'|sort > /var/tmp/k8s-vms/k8s_domain
+
+- name: Check /var/tmp/k8s-vms/k8s_domain
+  stat:
+    path: /var/tmp/k8s-vms/k8s_domain
+  ignore_errors: false
+
+- name: List domains
+  shell: cat /var/tmp/k8s-vms/k8s_domain
+  register: list_domains
+- debug:
+    var: list_domains.stdout

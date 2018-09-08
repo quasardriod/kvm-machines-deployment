@@ -1,0 +1,47 @@
+---
+
+ubuntu_template: ubuntu16.04
+# This network for Bridge interface of host machine
+net_type_1: bridge
+host_bridge: br0
+
+# This network type is for virtual internal or Forwarding networks ( for example: virbr0)
+net_type_2: network
+
+# office network
+vm_routed_network: default
+
+#  home network
+#    vm_routed_network: NAT
+
+nic_device_model: virtio
+storage_pool: vms
+vms_disk_path: /vms
+
+master1: k8s-master1
+master2: k8s-master2
+master3: k8s-master3
+
+master1_ip: 192.168.2.151
+master2_ip: 192.168.2.152
+master3_ip: 192.168.2.153
+
+
+node1: k8s-node1
+node2: k8s-node2
+
+node1_ip: 192.168.2.161
+node2_ip: 192.168.2.162
+
+lb01: k8s-lb01
+lb02: k8s-lb02
+
+lb01_ip: 192.168.2.156
+lb02_ip: 192.168.2.157
+
+client: k8s-client
+client_ip: 192.168.2.160
+
+k8s_nmask: 255.255.255.0
+k8s_gw: 192.168.2.1
+k8s_dns: 192.168.2.1

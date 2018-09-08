@@ -1,0 +1,15 @@
+---
+
+# This playbook to deploy VMs in KVM for kubernetes cluster
+
+- hosts: rhel7-office
+  become: true
+  become_method: sudo
+  vars_files:
+    - group_vars/all
+  roles:
+    - 1-vm-create
+    - 2-vm-resources
+    - 3-start-vms
+    - 4-virsh-vms
+    - 5-post-build

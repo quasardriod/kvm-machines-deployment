@@ -1,0 +1,19 @@
+---
+
+- include: 1-masters.yaml
+- include: 2-workers.yaml
+#- include: 3-lbs.yaml
+- include: 4-client.yaml
+
+#  - name: Modify domain connection socket in XML file for RHEL host
+#    shell: sed -i -e 's/domain-"{{centos_template}}"/domain-"{{item}}"/g' /etc/libvirt/qemu/"{{item}}".xml
+#    replace:
+#      path: /etc/libvirt/qemu/"{{item}}".xml
+#      regexp: '(\s+)domain-"{{centos_template}}"(\s+.*)?$'
+#      replace: '\1domain-"{{item}}"\2'
+#      backup: yes
+#    with_items:
+#      - "{{master}}"
+#      - "{{node1}}"
+#      - "{{node2}}"
+#    when: ansible_os_family == "RedHat"

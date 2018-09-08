@@ -1,0 +1,11 @@
+---
+
+- include: 1-ram-master.yaml
+- include: 2-ram-nodes.yaml
+- include: 3-ram-lbs.yaml
+- include: 4-ram-client.yaml
+- include: 5-cpu-master.yaml
+- include: 6-cpu-nodes.yaml
+- include: 7-cpu-lbs.yaml
+- include: 8-cpu-client.yaml
+- include: 9-restart-libvirtd.yaml

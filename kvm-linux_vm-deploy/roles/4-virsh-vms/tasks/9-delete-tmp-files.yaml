@@ -1,0 +1,4 @@
+---
+
+- name: Remove Created files
+  command: rm -rf /var/tmp/k8s-vms

@@ -1,0 +1,8 @@
+---
+
+- name: Create worker VMs snapshot
+  command: virsh snapshot-create-as "{{item}}" "{{item}}"-all-predone
+  with_items:
+    - "{{node1}}"
+    - "{{node2}}"
+  ignore_errors: false

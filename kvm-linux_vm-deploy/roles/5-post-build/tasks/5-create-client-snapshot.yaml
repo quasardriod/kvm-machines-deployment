@@ -1,0 +1,7 @@
+---
+
+- name: Create client VM snapshot
+  command: virsh snapshot-create-as "{{item}}" "{{item}}"-all-predone
+  with_items:
+    - "{{client}}"
+  ignore_errors: false

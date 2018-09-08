@@ -1,0 +1,8 @@
+---
+
+
+- name: Revert client VM snapshot
+  command: virsh snapshot-revert "{{item}}" "{{item}}"-all-predone
+  with_items:
+    - "{{client}}"
+  ignore_errors: false

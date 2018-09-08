@@ -1,0 +1,16 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+auto {{guestvm_nic.stdout}}
+iface {{guestvm_nic.stdout}} inet static
+address {{node2_ip}}
+netmask {{k8s_nmask}}
+gateway {{k8s_gw}}
+dns-nameservers {{k8s_dns}}

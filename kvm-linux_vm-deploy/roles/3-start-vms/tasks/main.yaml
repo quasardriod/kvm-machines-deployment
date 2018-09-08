@@ -1,0 +1,29 @@
+---
+
+- name: Start ALL VMs
+  command: virsh start "{{item}}"
+  with_items:
+    - "{{master1}}"
+    - "{{master2}}"
+    - "{{master3}}"
+    - "{{node1}}"
+    - "{{node2}}"
+    - "{{client}}"
+  ignore_errors: false
+
+- name: Do conditional check on VM Start
+  wait_for:
+    path: /var/log/messages
+    search_regex: "{{item}}"
+#    sleep: 20
+    delay: 5
+  with_items:
+    - Starting Virual machine
+    - DHCPACK
+    - "{{master1}}"
+    - "{{master2}}"
+    - "{{master3}}"
+    - "{{node1}}"
+    - "{{node2}}"
+    - "{{client}}"
+  ignore_errors: true

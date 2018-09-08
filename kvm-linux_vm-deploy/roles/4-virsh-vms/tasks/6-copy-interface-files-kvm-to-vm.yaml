@@ -1,0 +1,100 @@
+---
+
+- name: Get master1 IP in variable
+  shell: virsh domifaddr "{{master1}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_master1_ip
+
+- name: Get master2 IP in variable
+  shell: virsh domifaddr "{{master2}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_master2_ip
+
+- name: Get master3 IP in variable
+  shell: virsh domifaddr "{{master3}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_master3_ip
+
+- name: Get node1 IP in variable
+  shell: virsh domifaddr "{{node1}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_node1_ip
+
+- name: Get node2 IP in variable
+  shell: virsh domifaddr "{{node2}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_node2_ip
+
+#- name: Get lb01 IP in variable
+#  shell: virsh domifaddr "{{lb01}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+#  register: k8s_lb01_ip
+
+#- name: Get lb02 IP in variable
+#  shell: virsh domifaddr "{{lb02}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+#  register: k8s_node2_ip
+
+- name: Get client IP in variable
+  shell: virsh domifaddr "{{client}}"|awk 'FNR==3 {print $4}'|cut -d'/' -f1
+  register: k8s_client_ip
+
+- name: Copy master VMs ip template to VM from KVM host
+  shell: scp -o StrictHostKeyChecking=no /var/tmp/k8s-vms/"{{item.source}}" stack@$"{{item.vm}}":/tmp/interfaces
+  with_items:
+    - { source: 'k8s-master1.interface.j2', vm: "{{k8s_master1_ip.stdout}}" }
+    - { source: 'k8s-master2.interface.j2', vm: "{{k8s_master2_ip.stdout}}" }
+    - { source: 'k8s-master3.interface.j2', vm: "{{k8s_master3_ip.stdout}}" }
+  ignore_errors: false
+
+- name: Copy worker VMs ip template to VM from KVM host
+  shell: scp -o StrictHostKeyChecking=no /var/tmp/k8s-vms/"{{item.source}}" stack@$"{{item.vm}}":/tmp/interfaces
+  with_items:
+    - { source: 'k8s-node1.interface.j2', vm: "{{k8s_node1_ip.stdout}}" }
+    - { source: 'k8s-node2.interface.j2', vm: "{{k8s_node2_ip.stdout}}" }
+  ignore_errors: false
+
+#- name: Copy load balancer VMs ip template to VM from KVM host
+#  shell: scp -o StrictHostKeyChecking=no /var/tmp/k8s-vms/"{{item.source}}" stack@$"{{item.vm}}":/tmp/interfaces
+#  with_items:
+#    - { source: 'k8s-lb01.interface.j2', vm: "{{k8s_lb01_ip.stdout}}" }
+#    - { source: 'k8s-lb02.interface.j2', vm: "{{k8s_lb02_ip.stdout}}" }
+#  ignore_errors: false
+
+- name: Copy client VM ip template to VM from KVM host
+  shell: scp -o StrictHostKeyChecking=no /var/tmp/k8s-vms/"{{item.source}}" stack@$"{{item.vm}}":/tmp/interfaces
+  with_items:
+    - { source: 'k8s-client.interface.j2', vm: "{{k8s_client_ip.stdout}}" }
+  ignore_errors: false
+
+- name: Replace /etc/network/interfaces file with copied templates inside VMs
+  shell: for i in `cat /var/tmp/k8s-vms/k8s_vm_ips`;do ssh -o StrictHostKeyChecking=no stack@$i "sudo mv /tmp/interfaces /etc/network/interfaces";done
+  ignore_errors: false
+
+- name: Copy hosts file to VM in /tmp
+  shell: for i in `cat /var/tmp/k8s-vms/k8s_vm_ips`;do scp -o StrictHostKeyChecking=no /var/tmp/k8s-vms/hosts_file.j2 stack@$i:/tmp/hosts;done
+  ignore_errors: false
+
+- name: Replace /etc/hosts file with copied templates insode VMs
+  shell: for i in `cat /var/tmp/k8s-vms/k8s_vm_ips`;do ssh -o StrictHostKeyChecking=no stack@$i "sudo mv /tmp/hosts /etc/hosts";done
+
+- name: Set hostname of master VMs
+  shell: ssh -o StrictHostKeyChecking=no stack@"{{item.vm}}" 'sudo hostnamectl set-hostname "{{item.hostname}}"'
+  with_items:
+    - { vm: "{{k8s_master1_ip.stdout}}", hostname: "{{master1}}" }
+    - { vm: "{{k8s_master2_ip.stdout}}", hostname: "{{master2}}" }
+    - { vm: "{{k8s_master3_ip.stdout}}", hostname: "{{master3}}" }
+  ignore_errors: false
+
+- name: Set hostname of worker VMs
+  shell: ssh -o StrictHostKeyChecking=no stack@"{{item.vm}}" 'sudo hostnamectl set-hostname "{{item.hostname}}"'
+  with_items:
+    - { vm: "{{k8s_node1_ip.stdout}}", hostname: "{{node1}}" }
+    - { vm: "{{k8s_node2_ip.stdout}}", hostname: "{{node2}}" }
+  ignore_errors: false
+
+#- name: Set hostname of load balancer VMs
+#  shell: ssh -o StrictHostKeyChecking=no stack@"{{item.vm}}" 'sudo hostnamectl set-hostname "{{item.hostname}}"'
+#  with_items:
+#    - { vm: "{{k8s_lb01_ip.stdout}}", hostname: "{{lb01}}" }
+#    - { vm: "{{k8s_lb02_ip.stdout}}", hostname: "{{lb02}}" }
+#  ignore_errors: false
+
+- name: Set hostname of client
+  shell: ssh -o StrictHostKeyChecking=no stack@"{{item.vm}}" 'sudo hostnamectl set-hostname "{{item.hostname}}"'
+  with_items:
+    - { vm: "{{k8s_client_ip.stdout}}", hostname: "{{client}}" }
+  ignore_errors: false

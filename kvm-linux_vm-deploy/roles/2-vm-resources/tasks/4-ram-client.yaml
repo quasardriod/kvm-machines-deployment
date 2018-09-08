@@ -1,0 +1,10 @@
+---
+- name: Set Max RAM in client machine
+  command: virsh setmaxmem "{{ item.vm }}" "{{ item.ram }}" --config
+  with_items:
+    - { vm: "{{client}}", ram: '700M' }
+
+- name: Set Usable RAM in client machine
+  command: virsh setmem "{{ item.vm }}" "{{ item.ram }}" --config
+  with_items:
+    - { vm: "{{client}}", ram: '700M' }

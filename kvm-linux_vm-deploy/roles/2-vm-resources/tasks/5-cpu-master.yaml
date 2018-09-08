@@ -1,0 +1,15 @@
+---
+
+- name: Set Max CPU for master VMs
+  command: virsh setvcpus "{{ item.vm }}" "{{ item.cpu }}" --config --maximum
+  with_items:
+    - { vm: "{{master1}}", cpu: '4' }
+    - { vm: "{{master2}}", cpu: '4' }
+    - { vm: "{{master3}}", cpu: '4' }
+
+- name: Set Usable CPU for master VMs
+  command: virsh setvcpus "{{ item.vm }}" "{{ item.cpu }}" --config
+  with_items:
+      - { vm: "{{master1}}", cpu: '4' }
+      - { vm: "{{master2}}", cpu: '4' }
+      - { vm: "{{master3}}", cpu: '4' }

@@ -1,0 +1,9 @@
+---
+
+- name: Create master VMs snapshot
+  command: virsh snapshot-create-as "{{item}}" "{{item}}"-all-predone
+  with_items:
+    - "{{master1}}"
+    - "{{master2}}"
+    - "{{master3}}"
+  ignore_errors: false
