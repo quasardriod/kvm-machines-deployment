@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
+import os
 #def check_user():
 #    inventory-file = file('inventory.txt')
 #    for user in
 #    pass
+if os.evny
+    pass
 for user_var in "ansible_user", "ansible_ssh_user":
     if user_var in open('inventory.txt'):
         print(user_var)

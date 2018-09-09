@@ -6,4 +6,4 @@ then
 	echo "user: ${USER}" > local-user.yaml
 fi
 
-ansible-playbook localhost sshkey.yaml
+ansible-playbook -i local-inventory.txt sshkey.yaml
