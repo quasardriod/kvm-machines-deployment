@@ -8,7 +8,7 @@ import subprocess
 
 def rsa_key_management(ansible_key_var, inventory_file):
     key_path = re.split('=', ansible_key_var)
-    print("Public key in inventory file:", key_path[1].replace('\n', ''))
+    # print("Public key in inventory file:", key_path[1].replace('\n', ''))
     ssh_dir = os.path.join(os.environ['HOME'], ".ssh")
     existing_pub_key = os.path.join(ssh_dir, 'id_rsa.pub')
 
@@ -31,6 +31,16 @@ def key_update(current_os_key, current_inventory_key, *argv):
         print("User already has updated RSA key for 'ansible_ssh_private_key_file', skipping...")
 
 
+def ansible_user_management(ansible_var, inventory_file):
+    user_inventory = re.split('=', ansible_var)
+    # print("Exising User in file:", user_inventory[1].replace('\n', ''))
+    if os.environ['USER'] != user_inventory[1].replace('\n', ''):
+        print("Inventory user did not match with current user, updating...")
+        for change_user in fileinput.input(inventory_file, inplace=1):
+            change_user = change_user.replace(user_inventory[1].replace('\n', ''), os.environ['USER'])
+            sys.stdout.write(change_user)
+
+
 def user_update():
     for files in os.listdir('.'):
         if fnmatch.fnmatch(files, 'inven*.txt'):
@@ -38,21 +48,10 @@ def user_update():
             for line in open(files):
                 line = line.strip()
                 if line.startswith("ansible_user"):
-                    old_user = re.split('=', line)
-                    # print("Exising User in file:",  old_user[1].replace('\n', ''))
-                    # print(line)
-                    if os.environ['USER'] not in line:
-                        for change_user in fileinput.input(files, inplace=1):
-                            change_user = change_user.replace(old_user[1].replace('\n', ''), os.environ['USER'])
-                            sys.stdout.write(change_user)
+                    ansible_user_management(line, files)
 
                 elif line.startswith("ansible_ssh_user"):
-                    old_user = re.split('=', line)
-                    # print("Exising User in file:", old_user[1].replace('\n', ''))
-                    if os.environ['USER'] not in line:
-                        for change_user in fileinput.input(files, inplace=1):
-                            change_user = change_user.replace(old_user[1].replace('\n', ''), os.environ['USER'])
-                            sys.stdout.write(change_user)
+                    ansible_user_management(line, files)
 
                 elif line.startswith("ansible_ssh_private_key_file"):
                     rsa_key_management(line, files)
