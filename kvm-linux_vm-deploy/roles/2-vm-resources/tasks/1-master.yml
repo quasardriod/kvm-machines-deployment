@@ -1,0 +1,14 @@
+---
+- name: 2-vm-resources | Set RAM in master VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{master_hostname}}|awk '{print $2}'`;do
+      virsh setmaxmem $vm {{master_ram}} --config
+      virsh setmem $vm {{master_ram}} --config
+    done
+
+- name: 2-vm-resources | Set CPU for master VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{master_hostname}}|awk '{print $2}'`;do
+      virsh setvcpus $vm {{master_cpu}} --config --maximum
+      virsh setvcpus $vm {{master_cpu}} --config
+    done

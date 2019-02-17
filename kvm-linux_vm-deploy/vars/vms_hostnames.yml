@@ -1,6 +1,0 @@
----
-master1: k8s-master1
-master2: k8s-master2
-master3: k8s-master3
-node1: k8s-node1
-node2: k8s-node2

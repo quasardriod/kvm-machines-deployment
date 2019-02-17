@@ -1,9 +1,50 @@
 ---
 
-- name: Create master VMs for K8s cluster using Ubuntu16.04 template
-  command: virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
+- name: 1-vm-create | Set number of master node
+  set_fact:
+    node_count: "{{master_count}}"
+- name: 1-vm-create | Copy VM create template to target node
+  #command: virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
+  template:
+    src: create_vm.j2
+    dest: /tmp/create_vm.sh
+    owner: "{{ansible_ssh_user}}"
+  register: copy_template
   with_items:
-      - "{{master1}}"
-      - "{{master2}}"
-      - "{{master3}}"
-  ignore_errors: false
+    - { vm_count: "{{node_count}}", vm_name: "{{master_hostname}}" }
+
+- name: 1-vm-create | Get copied template stat
+  stat:
+    path: /tmp/create_vm.sh
+  register: get_copied_template
+
+- name: 1-vm-create | Run copied template to create master nodes
+  shell: sh /tmp/create_vm.sh
+  register: create_master
+  when:
+    - copy_template is succeeded
+    - get_copied_template.stat.exists
+
+- name: 1-vm-create | Verify Created kube masters
+  shell: virsh list --all|egrep -i {{master_hostname}}|wc -l
+  register: get_master_count
+  when: create_master.rc == 0
+
+- debug:
+    msg: "Kube master nodes created successfully..."
+  when: "{{ get_master_count.stdout }} == {{ master_count }}"
+
+- name: 1-vm-create | Remove copied template
+  file:
+    path: /tmp/create_vm.sh
+    state: absent
+  when:
+    - create_master is changed
+    - get_copied_template.stat.exists
+
+
+  #with_items:
+  #    - "{{master1}}"
+  #    - "{{master2}}"
+  #    - "{{master3}}"
+  #ignore_errors: false

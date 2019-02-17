@@ -1,0 +1,15 @@
+---
+
+- name: 2-vm-resources | Set RAM in client VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{client_hostname}}|awk '{print $2}'`;do
+      virsh setmaxmem $vm {{client_ram}} --config
+      virsh setmem $vm {{client_ram}} --config
+    done
+
+- name: 2-vm-resources | Set CPU for client VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{client_hostname}}|awk '{print $2}'`;do
+      virsh setvcpus $vm {{client_cpu}} --config --maximum
+      virsh setvcpus $vm {{client_cpu}} --config
+    done

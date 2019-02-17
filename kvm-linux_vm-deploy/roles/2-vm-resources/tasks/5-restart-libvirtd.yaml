@@ -1,0 +1,18 @@
+---
+
+- name: 2-vm-resources | restart libvirtd
+  service:
+    name: libvirtd
+    state: restarted
+  ignore_errors: false
+
+- name: 2-vm-resources | libvirtd check
+  wait_for:
+    path: /var/run/libvirt/libvirt-admin-sock
+    state: present
+#      sleep: 5
+  ignore_errors: false
+
+- name: 2-vm-resources | Set fact "vm_count"
+  shell: virsh list --all|egrep -i kube|awk '{print $2}'|wc -l
+  register: total_created_vms

@@ -1,8 +1,51 @@
 ---
 
-- name: Create workers VMs for K8s cluster using Ubuntu16.04 template
-  command: virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
+- name: 1-vm-create | Set number of worker nodes
+  set_fact:
+    node_count: "{{worker_count}}"
+
+- name: 1-vm-create | Copy VM create template to target node
+  #command: virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
+  template:
+    src: create_vm.j2
+    dest: /tmp/create_vm.sh
+    owner: "{{ansible_ssh_user}}"
+  register: copy_template
   with_items:
-      - "{{node1}}"
-      - "{{node2}}"
-  ignore_errors: false
+    - { vm_count: "{{worker_count}}", vm_name: "{{worker_hostname}}" }
+
+- name: 1-vm-create | Get copied template stat
+  stat:
+    path: /tmp/create_vm.sh
+  register: get_copied_template
+
+- name: 1-vm-create | Run copied template to create worker nodes
+  shell: sh /tmp/create_vm.sh
+  register: create_worker
+  when:
+    - copy_template is succeeded
+    - get_copied_template.stat.exists
+
+- name: 1-vm-create | Verify Created kube worker nodes
+  shell: virsh list --all|egrep -i {{worker_hostname}}|wc -l
+  register: get_worker_count
+  when: create_worker.rc == 0
+
+- debug:
+    msg: "Kube worker nodes created successfully..."
+  when: "{{ get_worker_count.stdout }} == {{ worker_count }}"
+
+- name: 1-vm-create | Remove copied template
+  file:
+    path: /tmp/create_vm.sh
+    state: absent
+  when:
+    - create_worker is changed
+    - get_copied_template.stat.exists
+
+
+  #with_items:
+  #    - "{{master1}}"
+  #    - "{{master2}}"
+  #    - "{{master3}}"
+  #ignore_errors: false

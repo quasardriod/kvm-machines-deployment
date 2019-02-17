@@ -1,0 +1,15 @@
+---
+
+- name: 2-vm-resources | Set RAM in load balancer VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{lb_hostname}}|awk '{print $2}'`;do
+      virsh setmaxmem $vm {{lb_ram}} --config
+      virsh setmem $vm {{lb_ram}} --config
+    done
+
+- name: 2-vm-resources | Set CPU for load balancer VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{lb_hostname}}|awk '{print $2}'`;do
+      virsh setvcpus $vm {{lb_cpu}} --config --maximum
+      virsh setvcpus $vm {{lb_cpu}} --config
+    done

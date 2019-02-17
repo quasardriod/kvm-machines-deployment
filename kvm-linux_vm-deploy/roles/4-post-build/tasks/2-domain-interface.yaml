@@ -1,5 +1,6 @@
 ---
 
+
 - name: Get attached interfaces of VMs
   shell: for i in `cat /var/tmp/k8s-vms/k8s_domain`;do virsh domiflist $i|grep -i virtio >> /var/tmp/k8s-vms/k8s-vm_interface;done
 
@@ -12,4 +13,4 @@
   shell: cat /var/tmp/k8s-vms/k8s-vm_interface
   register: interface_list
 - debug:
-    var: interface_list.stdout
+    var: interface_list.stdout_lines

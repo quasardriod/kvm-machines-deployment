@@ -1,0 +1,84 @@
+---
+
+- name: 4-post-build | Get network bridge source
+  shell: virsh domiflist `virsh list|grep -i kube|head -1|awk '{print $2}'`|egrep -i virtio|awk '{print $3}'
+  register: vm_net_bridge
+
+- name: 4-post-build | Get network bridge type
+  shell: virsh net-list|egrep -i {{vm_net_bridge.stdout}}
+  register: check_bridge
+  ignore_errors: true
+
+- name: 4-post-build | Set fact for physical network type
+  set_fact:
+    vm_net_type:  physical_bridge
+  when: check_bridge.rc != 0
+
+- name: 4-post-build | Set fact for virtual network type
+  set_fact:
+    vm_net_bridge:  virt_bridge
+  when: check_bridge.rc == 0
+
+- block:
+    - name: 4-post-build | Create VM inventory file, wait approx 50 secs...
+      script: get-vms-ips.sh
+      register: get_vm_ips
+
+    - name: 4-post-build | Check for VM inventory file
+      stat:
+        path: /var/tmp/kube-vms-inventory.yml
+      register: check_inventory_file
+      #when: get_vm_ips is succeeded
+
+    - name: 4-post-build | Get number of VMs in inventory
+      shell: grep -i kube /var/tmp/kube-vms-inventory.yml |awk '/kube/ {print $2}'|cut -d'=' -f2|egrep -v ^$|wc -l
+      register: count_vms_inventory
+      when: check_inventory_file.stat.exists
+
+    - debug:
+        var: count_vms_inventory.stdout
+    - name: 4-post-build | Kube VMs IPs
+      shell: cat /var/tmp/kube-vms-inventory.yml|egrep -i kube
+      register: read_vm_inventory
+
+    - set_fact:
+        got_success: true
+      when: "count_vms_inventory.stdout == total_created_vms.stdout"
+
+    - block:
+        - debug: msg="Successfully created VMs inventory..."
+        - debug: var=read_vm_inventory.stdout_lines
+
+        - name: Fetching VMs inventory to localhost
+          shell: pwd
+          register: get_pwd
+          delegate_to: localhost
+
+        - fetch:
+            src: /var/tmp/kube-vms-inventory.yml
+            dest: "{{get_pwd.stdout}}/"
+            flat: yes
+        - file:
+            path: /var/tmp/kube-vms-inventory.yml
+            state: absent
+      when: got_success is defined
+
+    - block:
+        - debug: var=read_vm_inventory.stdout_lines
+        - fail: msg="Error! Failed to created VMs inventory..."
+      when: got_success is not defined
+  when: vm_net_type == 'physical_bridge'
+
+#- name: Get VM IP addresses
+#  shell: for i in `cat /var/tmp/k8s-vms/k8s_domain`;do virsh domifaddr $i|awk 'FNR==3 {print $4}'|cut -d'/' -f1 >> /var/tmp/k8s-vms/k8s_vm_ips;done
+
+#- name: check /var/tmp/k8s-vms/k8s_vm_ips
+#  stat:
+#    path: /var/tmp/k8s-vms/k8s_vm_ips
+#  ignore_errors: false
+
+#- name: List VM IPs
+#  shell: cat /var/tmp/k8s-vms/k8s_vm_ips
+#  register: list_vm_ip
+#- debug:
+#    var: list_vm_ip.stdout

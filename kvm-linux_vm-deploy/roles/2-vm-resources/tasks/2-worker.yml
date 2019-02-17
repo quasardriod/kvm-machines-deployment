@@ -1,0 +1,15 @@
+---
+
+- name: 2-vm-resources | Set Max in worker VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{worker_hostname}}|awk '{print $2}'`;do
+      virsh setmaxmem $vm {{worker_ram}} --config
+      virsh setmem $vm {{worker_ram}} --config
+    done
+
+- name: 2-vm-resources | Set Max CPU for worker VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i {{worker_hostname}}|awk '{print $2}'`;do
+      virsh setvcpus $vm {{worker_cpu}} --config --maximum
+      virsh setvcpus $vm {{worker_cpu}} --config
+    done

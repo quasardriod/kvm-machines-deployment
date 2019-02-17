@@ -1,29 +1,21 @@
 ---
 
-- name: Start ALL VMs
-  command: virsh start "{{item}}"
-  with_items:
-    - "{{master1}}"
-    - "{{master2}}"
-    - "{{master3}}"
-    - "{{node1}}"
-    - "{{node2}}"
-    - "{{client}}"
+- name: 3-start-vms | Start ALL VMs
+  shell: |
+    for vm in `virsh list --all|egrep -i kube|awk '{print $2}'`;do
+      virsh start $vm
+    done
+  register: start_vm
+
+- name: 3-start-vms | Get Started VMs count
+  shell: virsh list|egrep -i kube|awk '{print $2}'
+  register: get_started_count
+  when: start_vm is succeeded
+
+- debug:
+    msg: "All Kube VMs got started..."
+  when: "get_started_count.stdout_lines|length == total_created_vms.stdout"
   ignore_errors: false
 
-- name: Do conditional check on VM Start
-  wait_for:
-    path: /var/log/messages
-    search_regex: "{{item}}"
-#    sleep: 20
-    delay: 5
-  with_items:
-    - Starting Virual machine
-    - DHCPACK
-    - "{{master1}}"
-    - "{{master2}}"
-    - "{{master3}}"
-    - "{{node1}}"
-    - "{{node2}}"
-    - "{{client}}"
-  ignore_errors: true
+- debug:
+    var: get_started_count.stdout_lines

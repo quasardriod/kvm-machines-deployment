@@ -1,0 +1,11 @@
+#!/bin/bash
+
+#virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
+
+count=0
+while [ $count -lt {{item.vm_count}} ];do
+  count=$[$count+1]
+  kvm_vm_name={{item.vm_name}}$count
+  virt-clone -o "{{os_template}}" -n "$kvm_vm_name" -f "{{vms_disk_path}}"/"$kvm_vm_name".qcow2
+  #echo "{{master_hostname}}$count"
+done

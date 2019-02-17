@@ -1,6 +1,29 @@
 ---
 
 ubuntu_template: ubuntu16.04
+centos_template: centos7-temp
+
+master_hostname: kube-master
+master_count: 1
+master_ram: 8G
+master_cpu: 4
+
+worker_hostname: kube-node
+worker_count: 2
+worker_ram: 2G
+worker_cpu: 2
+
+lb_hostname: kube-lb
+lb_count: 3
+lb_ram: 2G
+lb_cpu: 2
+
+# Kube Client
+client_hostname: kube-client
+client_count: 1
+client_ram: 2G
+client_cpu: 2
+
 # This network for Bridge interface of host machine
 net_type_1: bridge
 host_bridge: br0
@@ -17,6 +40,7 @@ vm_routed_network: default
 nic_device_model: virtio
 storage_pool: vms
 vms_disk_path: /vms
+
 
 master1: k8s-master1
 master2: k8s-master2

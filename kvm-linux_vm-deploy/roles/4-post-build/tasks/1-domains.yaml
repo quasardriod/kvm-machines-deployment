@@ -1,0 +1,12 @@
+---
+
+- name: 4-post-build | Create directory to store temp files
+  file:
+    path: /var/tmp/k8s-vms
+    state: directory
+    mode: 0755
+    owner: stack
+    group: stack
+
+- name: 4-post-build | Get domain names
+  shell: virsh list|grep -i kube|awk '{print $2}'|sort > /var/tmp/k8s-vms/k8s_domain
