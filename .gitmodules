@@ -1,0 +1,3 @@
+[submodule "galaxy-roles"]
+	path = galaxy-roles
+	url = https://github.com/quasarstack/galaxy.git
