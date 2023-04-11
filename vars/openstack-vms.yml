@@ -1,5 +1,8 @@
 kvm_deployment:
-  template: ubuntu2204-vm-template
+  template:
+    name: ubuntu2204-vm-template
+    image: ubuntu22.04-updated-image.qcow2
+    os_variant: 'ubuntu22.04'
   default_network: default
   net_list:
     - br-mgmt
@@ -9,39 +12,39 @@ kvm_deployment:
       cpu: 1
       memory: 1024
       networks:
-    #- name: u2204-ctrl1
-    #  cpu: 1
-    #  memory: 2048
-    #  interfaces:
-    #    eth1:
-    #      address: 192.168.50.11/24
-    #    eth2:
-    #      address: 192.168.60.11/24
-    #  networks:
-    #    - br-mgmt
-    #    - br-vxlan
-    #- name: u2204-ctrl2
-    #  cpu: 1
-    #  memory: 2048
-    #  interfaces:
-    #    eth1:
-    #      address: 192.168.50.12/24
-    #    eth2:
-    #      address: 192.168.60.12/24
-    #  networks:
-    #    - br-mgmt
-    #    - br-vxlan
-    #- name: u2204-ctrl3
-    #  cpu: 1
-    #  memory: 2048
-    #  interfaces:
-    #    eth1:
-    #      address: 192.168.50.13/24
-    #    eth2:
-    #      address: 192.168.60.13/24
-    #  networks:
-    #    - br-mgmt
-    #    - br-vxlan
+    - name: u2204-ctrl1
+      cpu: 1
+      memory: 1024
+      interfaces:
+        eth1:
+          address: 192.168.50.11/24
+        eth2:
+          address: 192.168.60.11/24
+      networks:
+        - br-mgmt
+        - br-vxlan
+    - name: u2204-ctrl2
+      cpu: 1
+      memory: 1024
+      interfaces:
+        eth1:
+          address: 192.168.50.12/24
+        eth2:
+          address: 192.168.60.12/24
+      networks:
+        - br-mgmt
+        - br-vxlan
+    - name: u2204-ctrl3
+      cpu: 1
+      memory: 1024
+      interfaces:
+        eth1:
+          address: 192.168.50.13/24
+        eth2:
+          address: 192.168.60.13/24
+      networks:
+        - br-mgmt
+        - br-vxlan
     - name: u2204-com1
       cpu: 1
       memory: 1024

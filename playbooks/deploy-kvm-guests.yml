@@ -18,17 +18,15 @@
   tasks:
   - name: Inclue role to create clones
     ansible.builtin.include_role:
-      name: create-vm-clones
+      name: create-kvm-machines
 
-  - name: Include role to set cpu and memory
-    ansible.builtin.include_role:
-      name: guest-cpu-ram
-  
+  #- name: Include role to set cpu and memory
+  #  ansible.builtin.include_role:
+  #    name: guest-cpu-ram
+ 
   - name: Include role  to set additional networks on VM
     ansible.builtin.include_role:
       name: attach-network-to-guest
-
-  - name: Include role to setup static IP in VMs
   
 
   

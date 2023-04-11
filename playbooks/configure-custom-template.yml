@@ -1,0 +1,111 @@
+---
+
+# This is scenario you have an existing KVM guest that you want to use as temaplete
+# Acceptance Cretria:
+# 1. One interface with dhcp enabled IP
+
+# You can provide machine VM creds using extra vars or export on shell
+
+# export kvm_guest_user=u
+# export kvm_guest_password=p
+
+# OR -e kvm_guest_user=u -e kvm_guest_password=p
+
+- hosts: localhost
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - ../vars/openstack-vms.yml
+
+  pre_tasks:
+  - name: Run Asserts
+    ansible.builtin.assert:
+      that:
+        - kvm_deployment.template is defined
+        - kvm_deployment.virtual_machines is defined
+        - kvm_deployment.net_list is defined
+  
+  - name: Start {{kvm_deployment.template}} vm
+    ansible.builtin.shell: |
+      if ! virsh domstate {{kvm_deployment.template}} |egrep "running";then
+        virsh start {{kvm_deployment.template}}
+        sleep 30
+      fi
+
+  tasks:
+  - name: Get {{kvm_deployment.template}} IP
+    ansible.builtin.command: virsh domifaddr {{kvm_deployment.template}}
+    register: _guest_eth
+    until: _guest_eth.rc == 0
+    retries: 6
+    delay: 20
+
+  - ansible.builtin.debug:
+      msg:
+        - "{{kvm_deployment.template}} Interface:"
+        - "{{_guest_eth.stdout_lines}}"
+
+  - name: Filter out KVM guest IP
+    ansible.builtin.shell: virsh domifaddr {{kvm_deployment.template}}| awk '/vnet/{print $4}'|cut -d'/' -f1
+    register: _ip
+
+  - ansible.builtin.meta: refresh_inventory
+
+  - name: Set fact kvm_guest_user and kvm_guest_password
+    ansible.builtin.set_fact:
+      kvm_guest_user: "{{ lookup('env', 'kvm_guest_user') }}"
+      kvm_guest_password: "{{ lookup('env', 'kvm_guest_password') }}"
+    when: kvm_guest_user is not defined or kvm_guest_password is not defined
+
+  - name: Add Created host in new_kvm_guest group
+    ansible.builtin.add_host:
+      name: "{{_ip.stdout}}"
+      groups: new_kvm_guest
+      ansible_user: "{{kvm_guest_user}}"
+      ansible_password: "{{kvm_guest_password}}"
+      ansible_become_pass: "{{kvm_guest_password}}"
+
+- hosts: new_kvm_guest
+  gather_facts: true
+  become: true
+
+  vars:
+    guest_os: ubuntu2204
+    host_reboot: false
+  
+  vars_files:
+    - ../vars/openstack-vms.yml
+    
+  tasks:    
+  - name: Include os-tuning role to setup vconsole, disable ipv6 and disable biosdevname
+    ansible.builtin.include_role:
+      name: os-tuning
+      tasks_from: main.yml
+
+  - name: Reboot host 
+    ansible.builtin.shell: |
+      virsh shutdown {{kvm_deployment.template}}
+      [ $? != 0 ] && echo "Failed to shutdown VM" && exit 1
+      sleep 10
+      virsh start {{kvm_deployment.template}}
+      sleep 30
+    args:
+      executable: /bin/bash
+    delegate_to: localhost
+    when: host_reboot|bool
+
+  - name: Update ansible facts
+    ansible.builtin.setup:
+
+  - name: Include os-tuning role to set dhcp identifier
+    ansible.builtin.include_role:
+      name: os-tuning
+      tasks_from: dhcp-identifier.yml
+
+  - name: Shutdown {{kvm_deployment.template}} 
+    ansible.builtin.shell: |
+      virsh shutdown {{kvm_deployment.template}}
+      [ $? != 0 ] && echo "Failed to shutdown VM" && exit 1
+      sleep 10
+    delegate_to: localhost 
