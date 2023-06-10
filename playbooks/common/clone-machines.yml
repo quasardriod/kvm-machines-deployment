@@ -1,0 +1,13 @@
+---
+
+- hosts: all
+  gather_facts: true
+  become: yes
+
+  vars_files:
+    - ../vars/clone-machines.yml
+
+  tasks:
+  - name: include role clone-machines
+    ansible.builtin.include_role:
+      name: clone-machines

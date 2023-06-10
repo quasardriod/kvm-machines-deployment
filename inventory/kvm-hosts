@@ -1,0 +1,5 @@
+fedora-kvm-host ansible_host=192.168.100.108
+
+[all:vars]
+ansible_user=sumit
+ansible_password=redhat
