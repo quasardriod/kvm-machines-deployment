@@ -18,13 +18,6 @@
     state: latest
   when: ansible_os_family in ["RedHat"]
 
-
-- name: Set hostname
-  ansible.builtin.hostname:
-    name: "{{ inventory_hostname }}"
-    use: systemd
-
-
 # - name: Install packages on Ubuntu
 #   ansible.builtin.apt:
 #     name:

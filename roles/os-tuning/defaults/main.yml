@@ -1,4 +1,5 @@
 ubuntu_net_config_file: /etc/netplan/50-cloud-init.yaml
-grub_default_param: "quiet splash console=tty0 console=ttyS0,115200 ipv6.disable=1 net.ifnames=0 biosdevname=0"
-grub_param: "console=tty0 console=ttyS0,115200 ipv6.disable=1 net.ifnames=0 biosdevname=0"
+grub_default_param: "quiet splash console=tty0 console=ttyS0,115200 net.ifnames=0 biosdevname=0"
+grub_param: "console=tty0 console=ttyS0,115200 net.ifnames=0 biosdevname=0"
+blacklist_grub_param: "ipv6.disable=1"
 update_grub: false
