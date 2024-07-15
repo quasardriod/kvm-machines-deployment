@@ -1,0 +1,32 @@
+---
+
+- name: static-ip | Get IP with prefix
+  shell: ip a s {{ansible_default_ipv4.interface}}|egrep "\s+inet\s"|awk '{print $2}'
+  register: _ip_prefix
+
+- name: static-ip |Set fact ip_with_prefix
+  set_fact:
+    ip_with_prefix: "{{_ip_prefix.stdout}}"
+
+- name: static-ip |Template out config for ubuntu machine
+  template:
+    src: ubuntu-netplan.j2
+    dest: /etc/netplan/50-cloud-init.yaml
+    owner: root
+    group: root
+  when: ansible_os_family == "Debian"
+  register: _static_config
+
+- name: static-ip |Enable network changes
+  command: netplan apply
+  when: _static_config is changed
+
+#- name: Reboot host
+#  reboot:
+#    reboot_timeout: 600
+#    test_command: "uptime"
+#when: _static_config is changed
+
+- setup:
+
+

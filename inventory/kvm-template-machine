@@ -1,0 +1,7 @@
+kvm-template ansible_host=192.168.10.97
+
+[all:vars]
+ansible_user=root
+ansible_password=redhat
+
+

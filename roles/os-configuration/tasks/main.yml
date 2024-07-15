@@ -1,0 +1,82 @@
+
+- name: os-configuration | Run OS type assert
+  ansible.builtin.assert:
+    that:
+    - ansible_os_family in ["RedHat", "Ubuntu"]
+
+- name: os-configuration | Run Ubuntu OS version assert
+  ansible.builtin.assert:
+    that:
+    - ansible_distribution_version == "20.04" or ansible_distribution_version == "22.04"
+  when: ansible_os_family == "Ubuntu"
+
+- name: os-configuration | Install required packages
+  ansible.builtin.package:
+    name:
+    - nmstate
+    - vim
+    state: latest
+  when: ansible_os_family in ["RedHat"]
+
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+    use: systemd
+
+
+# - name: Install packages on Ubuntu
+#   ansible.builtin.apt:
+#     name:
+#     - sshpass
+#     - make
+#     - python3-pip
+#     - apt-transport-https
+#     - ca-certificates
+#     - curl
+#     state: latest
+#     update_cache: yes
+#   register: _install_pkg
+#   retries: 3
+#   delay: 5
+#   until: _install_pkg is success
+#   when: ansible_distribution == "Ubuntu"
+
+# - name: Set NOPASSWD for {{ansible_user}}
+#   ansible.builtin.lineinfile:
+#     path: "/etc/sudoers.d/{{ansible_user}}"
+#     regexp: '{{ansible_user}}\sALL='
+#     line: '{{ansible_user}} ALL=(ALL:ALL) NOPASSWD:ALL'
+#     state: present
+#     create: yes
+#     validate: 'visudo -cf %s'
+
+# - name: Install Pub key in all machines
+#   ansible.posix.authorized_key:
+#     user: "{{ansible_user}}"
+#     state: present
+#     key: "{{ lookup('file', '{{pub_key_on_localhost}}') }}"
+#   when: pub_key_on_localhost is defined
+#   become: false
+
+# - name: Change Root password
+#   ansible.builtin.user:
+#     name: root
+#     update_password: always
+#     password: "{{root_password}}"
+#   when: root_password is defined
+
+- name: Allow Root login over ssh
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin\s'
+    line: 'PermitRootLogin yes'
+    state: present
+  notify: Restart_sshd
+
+- name: Install Root Pub key in all machines
+  ansible.posix.authorized_key:
+    user: "root"
+    state: present
+    key: "{{ lookup('file', '{{root_pub_key_on_localhost}}') }}"
+  when: install_root_pub_key|bool

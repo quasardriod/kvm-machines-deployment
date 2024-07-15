@@ -1,0 +1,73 @@
+
+- name: os-tuning | Current proc/cmdline
+  ansible.builtin.debug:
+    msg: "{{lookup('ansible.builtin.file', '/proc/cmdline')}}"
+
+- name: os-tuning | Get current state of /etc/default/grub
+  ansible.builtin.shell: cat /etc/default/grub
+  register: grub_current
+
+- name: os-tuning | Show grub_current
+  ansible.builtin.debug:
+    var: grub_current.stdout_lines
+
+- name: os-tuning | Set fact grub_params_list
+  ansible.builtin.set_fact:
+    grub_params_list: "{{ grub_param.split(' ') }}"
+
+- name: os-tuning | Show grub_params_list
+  ansible.builtin.debug:
+    var: grub_params_list
+
+- name: os-tuning | Set fact update_grub
+  ansible.builtin.set_fact:
+    update_grub: true
+  when:
+  - grub_current is not search(item)
+  with_items: "{{ grub_params_list }}"
+
+- name: os-tuning | Show update_grub
+  ansible.builtin.debug:
+    var: update_grub
+
+- block:
+  - name: os-tuning | Take backup of /etc/default/grub
+    ansible.builtin.copy:
+      src: /etc/default/grub
+      dest: /etc/default/grub-{{ansible_date_time.iso8601_basic_short}}
+      mode: 0644
+      owner: root
+      group: root
+      remote_src: yes
+
+  - name: os-tuning | Update GRUB_CMDLINE_LINUX in /etc/default/grub
+    ansible.builtin.command: grubby --update-kernel=ALL --args="{{ grub_param }}"
+    register: _update_grub_param
+    when:
+    - ansible_os_family in ["RedHat", "Debian"]
+
+  - block:
+    - name: os-tuning | Generate grub config for RedHat machines
+      ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+      when: ansible_os_family in ["RedHat"]
+
+    - name: os-tuning | Generate grub config for Debian machines
+      ansible.builtin.command: grub-mkconfig -o /boot/grub/grub.cfg
+      when: ansible_os_family in ["Debian"]
+
+    - name: os-tuning | Reboot host
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+    when: _update_grub_param is changed
+  when: update_grub|bool
+
+
+# - name: Update GRUB_CMDLINE_LINUX_DEFAULT in /etc/default/grub
+#   ansible.builtin.lineinfile:
+#     path: /etc/default/grub
+#     regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+#     line: 'GRUB_CMDLINE_LINUX_DEFAULT="{{grub_default_param}}"'
+#     state: present
+#   register: _update_grub_default_param
+#   when:
+#   - ansible_os_family in ["RedHat", "Debian"]

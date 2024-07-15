@@ -1,0 +1,19 @@
+---
+
+- name: dhcp-identifier | Update network config with dhcp-identifier=mac
+  ansible.builtin.template:
+    src: dhcp-identifier.j2
+    dest: /etc/netplan/50-cloud-init.yaml
+    mode: 0644
+    owner: root
+    group: root
+  register: _netplan_config
+  when: ansible_os_family == "Debian"
+
+# Machine must be rebooted outside this role
+- name: set fact host_reboot=true
+  ansible.builtin.set_fact:
+    host_reboot: true
+  when: 
+    - _netplan_config is changed
+    - ansible_os_family == "Debian"

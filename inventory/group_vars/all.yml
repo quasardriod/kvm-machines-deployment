@@ -1,0 +1,3 @@
+pub_key_on_localhost: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+install_root_pub_key: true
+root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"

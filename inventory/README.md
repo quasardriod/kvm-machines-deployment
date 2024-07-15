@@ -1,0 +1,1 @@
+https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html-single/configuring_and_managing_networking/index#configuring-an-ethernet-connection-with-a-static-ip-address-by-using-the-network-rhel-system-role-with-an-interface-name_configuring-an-ethernet-connection

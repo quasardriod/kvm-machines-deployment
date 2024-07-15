@@ -1,0 +1,7 @@
+# This is the network config written by 'ansible'
+network:
+  version: 2
+  ethernets:
+    {{ansible_default_ipv4.interface}}:
+      dhcp4: true
+      dhcp-identifier: mac

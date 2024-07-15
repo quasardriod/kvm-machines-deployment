@@ -1,0 +1,9 @@
+- name: Restart_sshd
+  ansible.builtin.systemd:
+    name: "{{ item.service }}"
+    state: restarted
+  when: item.OS == ansible_os_family
+  with_items:
+  - {OS: "RedHat", service: "sshd"}
+  - {OS: "Debian", service: "ssh",}
+

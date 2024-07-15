@@ -1,0 +1,25 @@
+
+- hosts: all
+  gather_facts: true
+
+
+  tasks:
+  - name: Include os-tuning role to setup vconsole, disable ipv6 and disable biosdevname
+    ansible.builtin.include_role:
+      name: os-tuning
+      tasks_from: main.yml
+
+  # - name: Reboot host
+  #   ansible.builtin.shell: |
+  #     virsh shutdown {{kvm_deployment.template}}
+  #     [ $? != 0 ] && echo "Failed to shutdown VM" && exit 1
+  #     sleep 10
+  #     virsh start {{kvm_deployment.template}}
+  #     sleep 30
+  #   args:
+  #     executable: /bin/bash
+  #   delegate_to: localhost
+  #   when: host_reboot|bool
+
+  # - name: Update ansible facts
+  #   ansible.builtin.setup:
