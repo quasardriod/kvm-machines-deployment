@@ -1,4 +1,4 @@
-kolla-deployer ansible_host=192.168.10.165
+kolla-deployer ansible_host=192.168.64.143
 [all:vars]
 ansible_user=root
 # ansible_private_key=/home/sumit/.ssh/id_rsa.pub

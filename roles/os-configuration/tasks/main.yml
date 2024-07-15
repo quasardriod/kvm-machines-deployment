@@ -1,4 +1,4 @@
-
+---
 - name: os-configuration | Run OS type assert
   ansible.builtin.assert:
     that:
@@ -74,9 +74,9 @@
     state: present
   notify: Restart_sshd
 
-- name: Install Root Pub key in all machines
-  ansible.posix.authorized_key:
-    user: "root"
-    state: present
-    key: "{{ lookup('file', '{{root_pub_key_on_localhost}}') }}"
-  when: install_root_pub_key|bool
+#- name: Install Root Pub key in all machines
+#  ansible.posix.authorized_key:
+#    user: "root"
+#    state: present
+#    key: "{{ lookup('file', '{{root_pub_key_on_localhost}}') }}"
+#  when: install_root_pub_key|bool

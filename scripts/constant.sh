@@ -2,7 +2,8 @@
 
 ROCKY_IMAGE_SOURCE="https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
 IMAGE_TYPE="qcow2"
-IMAGES_STORE="/var/lib/libvirt/images"
+IMAGE_TEMPLATE_STORE="/var/lib/libvirt/images"
+IMAGES_STORE="/vms"
 PRIVATE_KEY="/home/sumit/.ssh/id_rsa.pub"
 
 declare -a NIC_MODELS=(
@@ -17,7 +18,7 @@ declare -a VARIANTS=(
 )
 
 declare -a IMAGES=(
-    "rocky9-template"
+  "rocky9-template"
 	"Rocky-9-GenericCloud-LVM.latest.x86_64"
 	"Rocky-9-GenericCloud-LVM-9.4-20240609.0.x86_64"
 )
@@ -102,9 +103,9 @@ function download_image(){
     info "\nINFO: Downloading image: $image_download_url\n"
     wget -q $image_download_url
 
-    sudo cp $image $IMAGES_STORE/
-    sudo chmod 644 $IMAGES_STORE/$image
-    success "\nINFO: Image downloaded successfully and copied to image store: $IMAGES_STORE\n"
+    sudo cp $image $IMAGE_TEMPLATE_STORE/
+    sudo chmod 644 $IMAGE_TEMPLATE_STORE/$image
+    success "\nINFO: Image downloaded successfully and copied to image store: $IMAGE_TEMPLATE_STORE\n"
 }
 
 # function vm_disk_cleanup(){
@@ -130,7 +131,7 @@ function vm_disks(){
 	DEST_IMAGE_TYPE="${variant_name}.qcow2"
 	VM_ROOT_DISK="${IMAGES_STORE}/${vm}-${DEST_IMAGE_TYPE}"
 	if [[ ! -f "${VM_ROOT_DISK}" ]];then
-		sudo cp $IMAGES_STORE/$image_full_name $VM_ROOT_DISK
+		sudo cp $IMAGE_TEMPLATE_STORE/$image_full_name $VM_ROOT_DISK
 		sudo chmod 644 $VM_ROOT_DISK
 		success "\nCreated VM Disk: $VM_ROOT_DISK"
     else

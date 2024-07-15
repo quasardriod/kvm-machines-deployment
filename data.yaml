@@ -1,21 +1,21 @@
 openstack:
 - type: controller
   name: ost-ctrl
-  cpu: 6
-  memory: 6144
+  cpu: 10
+  memory: 12288
   count: 1
   nic: 2
-  ip_extra_args: "ip=192.168.10.50::192.168.10.1:255.255.255.0:eth0:none"
+#  ip_extra_args: "ip=192.168.10.50::192.168.10.1:255.255.255.0:eth0:none"
   networks:
   - default
   - tenant
 - type: compute
   name: ost-com
-  cpu: 2
-  memory: 4096
+  cpu: 10
+  memory: 12288
   count: 1
   nic: 2
-  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
+#  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
   networks:
   - default
   - tenant
@@ -23,7 +23,7 @@ openstack:
 custom:
 - type: machine
   name: kolla-deployer
-  cpu: 1
+  cpu: 2
   memory: 2048
   count: 1
   nic: 1

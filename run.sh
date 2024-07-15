@@ -18,10 +18,10 @@ function image_selector(){
 	
 	success "\n-> Selected image: $image_full_name\n"
 
-	if [ ! -f $IMAGES_STORE/$image_full_name ];then
+	if [ ! -f $IMAGE_TEMPLATE_STORE/$image_full_name ];then
 		download_image $image_full_name
 	else
-		success "INFO: Image $image_full_name already present in Image Store: $IMAGES_STORE\n"
+		success "INFO: Image $image_full_name already present in Image Store: $IMAGE_TEMPLATE_STORE\n"
 	fi
 }
 
