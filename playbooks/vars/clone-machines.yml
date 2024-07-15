@@ -1,0 +1,12 @@
+source_machine: ubuntu2204
+target_machines:
+  - k8s-m01
+  - k8s-w01
+
+kvm_guest_machines:
+  - name: k8s-m01
+    cpu: 12
+    memory: 12582912 # KB
+  - name: k8s-w01
+    cpu: 8
+    memory: 8388608

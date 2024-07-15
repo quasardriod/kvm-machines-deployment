@@ -1,0 +1,7 @@
+ubuntu ansible_host=192.168.64.160
+
+[all:vars]
+ansible_user=ubuntu
+ansible_password=redhat
+ansible_become_pass=redhat
+template_machine=true
