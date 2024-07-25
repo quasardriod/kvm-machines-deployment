@@ -1,4 +1,3 @@
----
 - name: os-configuration | Run OS type assert
   ansible.builtin.assert:
     that:
@@ -16,11 +15,6 @@
     - nmstate
     - vim
     state: latest
-  when: ansible_os_family in ["RedHat"]
-
-- name: os-configuration | Update packages to latest
-  ansible.builtin.command: dnf update -y
-  changed_when: true
   when: ansible_os_family in ["RedHat"]
 
 # - name: Install packages on Ubuntu

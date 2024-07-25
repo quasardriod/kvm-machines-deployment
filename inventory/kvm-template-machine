@@ -1,4 +1,4 @@
-kvm-template ansible_host=192.168.64.182
+kvm-template ansible_host=192.168.64.47
 
 [all:vars]
 ansible_user=root

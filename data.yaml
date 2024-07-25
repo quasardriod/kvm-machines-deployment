@@ -4,21 +4,22 @@ openstack:
   cpu: 10
   memory: 12288
   count: 1
-  nic: 2
+  nic: 3
   #  ip_extra_args: "ip=192.168.10.50::192.168.10.1:255.255.255.0:eth0:none"
   networks:
   - default
+  - controlplane
   - tenant
-- type: compute
-  name: ost-com
-  cpu: 10
-  memory: 12288
-  count: 1
-  nic: 2
-  #  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
-  networks:
-  - default
-  - tenant
+#- type: compute
+#  name: ost-com
+#  cpu: 10
+#  memory: 12288
+#  count: 1
+#  nic: 2
+#  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
+#  networks:
+#  - default
+#  - tenant
 
 dpdk:
 - type: machine
