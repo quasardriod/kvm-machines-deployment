@@ -3,8 +3,9 @@
 ROCKY_IMAGE_SOURCE="https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
 IMAGE_TYPE="qcow2"
 IMAGE_TEMPLATE_STORE="/var/lib/libvirt/images"
-IMAGES_STORE="/vms"
-PRIVATE_KEY="/home/sumit/.ssh/id_rsa.pub"
+# IMAGES_STORE="/vms"
+IMAGES_STORE="/var/lib/libvirt/images"
+PRIVATE_KEY="~/.ssh/id_rsa.pub"
 
 declare -a NIC_MODELS=(
     "virtio"
@@ -24,8 +25,8 @@ declare -a IMAGES=(
 )
 
 declare -a VMS_PURPOSE=(
-    "custom"
     "openstack"
+    "dpdk"
 )
 
 declare -a KVM_NETWORKS=(
@@ -144,23 +145,24 @@ function vm_install(){
     DISK=$2
     VARIANT=$3
     DEPLOYMENT_TYPE=$4
-    MEM=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$vm\").memory" $VMS_DATA)
-    VCPU=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$vm\").cpu" $VMS_DATA)
+    common_name=$5
+    MEM=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").memory" $VMS_DATA)
+    VCPU=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").cpu" $VMS_DATA)
     
     # Set ip_extra_args
     # echo "yq '.${DEPLOYMENT_TYPE}[]|select(.name == \"${vm}\").ip_extra_args' $VMS_DATA" > /tmp/1.sh
     # ip_extra_args=$(source /tmp/1.sh)   
-    NICs=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$vm\").nic" $VMS_DATA)
+    NICs=$(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").nic" $VMS_DATA)
     
     # Ensure NICs and given networks count is matching
-    if [[ $NICs != $(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$vm\").networks|length" $VMS_DATA) ]];then
+    if [[ $NICs != $(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").networks|length" $VMS_DATA) ]];then
         error "\nERROR: NICs count: $NICs and Networks length not matching\n"
         exit 1
     fi
         
     # Set interfaces
     network_params=()
-    for n in $(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$vm\").networks" $VMS_DATA);do
+    for n in $(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").networks" $VMS_DATA);do
         if [[ $n =~ ^[a-zA-Z] ]];then
             network_params+=("--network network=$n,model=${NIC_MODELS[0]}")
         fi
@@ -173,8 +175,8 @@ function vm_install(){
         sudo virt-install --name $vm --memory $MEM --vcpu $VCPU --cpu host \
         --boot hd --disk $DISK --import \
         --osinfo detect=on,require=on,name=$VARIANT --noautoconsole \
-        --cloud-init $CLOUD_INIT_INPUT \
         ${network_params[@]}
+        # --cloud-init $CLOUD_INIT_INPUT \ Fix me
         # --network network="${KVM_NETWORKS[0]}",model=virtio --network network="${KVM_NETWORKS[1]}",model=virtio
         # --extra-args $ip_extra_args
         sleep 30
@@ -191,7 +193,6 @@ function create_inventory_file(){
 cat > $INVENTORY_FILE <<EOF
 [all:vars]
 ansible_user=root
-# ansible_private_key=$PRIVATE_KEY
 ansible_password=redhat
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF

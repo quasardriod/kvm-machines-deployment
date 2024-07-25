@@ -5,7 +5,7 @@ openstack:
   memory: 12288
   count: 1
   nic: 2
-#  ip_extra_args: "ip=192.168.10.50::192.168.10.1:255.255.255.0:eth0:none"
+  #  ip_extra_args: "ip=192.168.10.50::192.168.10.1:255.255.255.0:eth0:none"
   networks:
   - default
   - tenant
@@ -15,12 +15,23 @@ openstack:
   memory: 12288
   count: 1
   nic: 2
-#  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
+  #  ip_extra_args: "ip=192.168.10.51::192.168.10.1:255.255.255.0:eth0:none"
   networks:
   - default
   - tenant
 
-custom:
+dpdk:
+- type: machine
+  name: dpdk
+  cpu: 4
+  memory: 4096
+  count: 2
+  nic: 2
+  networks:
+  - default
+  - tenant
+
+vms:
 - type: machine
   name: kolla-deployer
   cpu: 2

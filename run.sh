@@ -62,10 +62,7 @@ function read_vms_data(){
 	info "\n$DEPLOYMENT_TYPE:\n"
 	yq .$DEPLOYMENT_TYPE $VMS_DATA
 
-
-
 }
-
 
 function set_vms_properties(){
 	DEPLOYMENT_TYPE=$1
@@ -118,8 +115,8 @@ function set_vms_properties(){
 			
 			# Create VM
 			# vm_install expects: vm=$1,DISK=$2,MEM=$3,VCPU=$4,VARIANT=$5
-			# vm_install $v "$VM_ROOT_DISK" $memory $cpu $variant_name
-			vm_install $v "$VM_ROOT_DISK" $variant_name $DEPLOYMENT_TYPE
+			# vm_install $v "$VM_ROOT_DISK" $memory $cpu $variant_name $common_name
+			vm_install $v "$VM_ROOT_DISK" $variant_name $DEPLOYMENT_TYPE $common_name
 
 			# Test network connectivity
 			get_vm_ips $v
