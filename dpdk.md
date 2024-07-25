@@ -1,69 +1,37 @@
 # DPDK
 
 - [System Requirements](https://doc.dpdk.org/guides/linux_gsg/sys_reqs.html)
-- [DPDK Files](#dpdk-files)
 - [Hugepages](#hugepages)
+- [DPDK Build](#dpdk-files)
 - [Linux Drivers](#linux-drivers)
   - [VFIO](#vfio)
     - [VFIO no-IOMMU Mode](#vfio-no-iommu-mode)
 - [Interface Binding](#interface-binding)
 
-## DPDK Files
-**Before Compiling DPDK**
-```
-[root@localhost dpdk-24.03]# ls -l
-total 112
--rw-rw-r--.  1 root root     5 Mar 28 19:26 ABI_VERSION
-drwxrwxr-x. 23 root root  4096 Mar 28 19:26 app
-drwxrwxr-x.  5 root root  4096 Mar 28 19:26 buildtools
-drwxrwxr-x.  7 root root   108 Mar 28 19:26 config
-drwxrwxr-x.  3 root root  4096 Mar 28 19:26 devtools
-drwxrwxr-x.  5 root root    62 Mar 28 19:26 doc
-drwxrwxr-x. 16 root root  4096 Mar 28 19:26 drivers
-drwxrwxr-x.  5 root root   165 Mar 28 19:26 dts
-drwxrwxr-x. 49 root root  4096 Mar 28 19:26 examples
-drwxrwxr-x.  3 root root    40 Mar 28 19:26 kernel
-drwxrwxr-x. 59 root root  4096 Mar 28 19:26 lib
-drwxrwxr-x.  2 root root   159 Mar 28 19:26 license
--rw-rw-r--.  1 root root 50702 Mar 28 19:26 MAINTAINERS
--rw-rw-r--.  1 root root   219 Mar 28 19:26 Makefile
--rw-rw-r--.  1 root root  5364 Mar 28 19:26 meson.build
--rw-rw-r--.  1 root root  4641 Mar 28 19:26 meson_options.txt
--rw-rw-r--.  1 root root   510 Mar 28 19:26 README
-drwxrwxr-x.  2 root root  4096 Mar 28 19:26 usertools
--rw-rw-r--.  1 root root     8 Mar 28 19:26 VERSION
-```
-
-**After Compiling DPDK**
-```
-[root@dpdk01 dpdk-24.03]# ls -l
-total 116
--rw-rw-r--.  1 root root     5 Mar 28 19:26 ABI_VERSION
-drwxrwxr-x. 23 root root  4096 Mar 28 19:26 app
-drwxr-xr-x. 15 root root  4096 Jul 25 10:12 build
-drwxrwxr-x.  6 root root  4096 Jul 25 10:13 buildtools
-drwxrwxr-x.  7 root root   108 Mar 28 19:26 config
-drwxrwxr-x.  3 root root  4096 Mar 28 19:26 devtools
-drwxrwxr-x.  5 root root    62 Mar 28 19:26 doc
-drwxrwxr-x. 16 root root  4096 Mar 28 19:26 drivers
-drwxrwxr-x.  5 root root   165 Mar 28 19:26 dts
-drwxrwxr-x. 49 root root  4096 Mar 28 19:26 examples
-drwxrwxr-x.  3 root root    40 Mar 28 19:26 kernel
-drwxrwxr-x. 59 root root  4096 Mar 28 19:26 lib
-drwxrwxr-x.  2 root root   159 Mar 28 19:26 license
--rw-rw-r--.  1 root root 50702 Mar 28 19:26 MAINTAINERS
--rw-rw-r--.  1 root root   219 Mar 28 19:26 Makefile
--rw-rw-r--.  1 root root  5364 Mar 28 19:26 meson.build
--rw-rw-r--.  1 root root  4641 Mar 28 19:26 meson_options.txt
--rw-rw-r--.  1 root root   510 Mar 28 19:26 README
-drwxrwxr-x.  2 root root  4096 Mar 28 19:26 usertools
--rw-rw-r--.  1 root root     8 Mar 28 19:26 VERSION
-```
 ## Hugepages
 
 Hugepages being set using `dpdk.yml` playbook. DPDK also provides `dpdk-hugepages.py` utility to set hugepages on system.
 ```bash
 ./usertools/dpdk-hugepages.py
+```
+
+## DPDK Build
+> TODO: Write a script for below steps
+
+```bash
+# uname -a
+Linux dpdk02 5.14.0-427.13.1.el9_4.x86_64 #1 SMP PREEMPT_DYNAMIC Wed May 1 19:11:28 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+
+# ls -l dpdk-24.03.tar.xz 
+-rw-r--r--. 1 root root 16507004 Jul 25 10:09 dpdk-24.03.tar.xz
+
+# tar -xf dpdk-24.03.tar.xz
+
+# cd dpdk-24.03
+
+# meson build
+
+# ninja -C build
 ```
 
 ## Linux Drivers
