@@ -2,10 +2,10 @@
 
 ROCKY_IMAGE_SOURCE="https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
 IMAGE_TYPE="qcow2"
-IMAGE_TEMPLATE_STORE="/var/lib/libvirt/images"
+IMAGE_TEMPLATE_STORE="/var/lib/libvirt/images/artifactory"
 # IMAGES_STORE="/vms"
 IMAGES_STORE="/var/lib/libvirt/images"
-PRIVATE_KEY="~/.ssh/id_rsa.pub"
+PRIVATE_KEY="$HOME/.ssh/id_rsa.pub"
 
 declare -a NIC_MODELS=(
     "virtio"
@@ -18,15 +18,18 @@ declare -a VARIANTS=(
     
 )
 
-declare -a IMAGES=(
-  "rocky9-template"
-	"Rocky-9-GenericCloud-LVM.latest.x86_64"
-	"Rocky-9-GenericCloud-LVM-9.4-20240609.0.x86_64"
-)
+# declare -a IMAGES=(
+#     "rocky9-template.$IMAGE_TYPE"
+# 	"Rocky-9-GenericCloud-LVM.latest.x86_64.$IMAGE_TYPE"
+# 	"Rocky-9-GenericCloud-LVM-9.4-20240609.0.x86_64.$IMAGE_TYPE"
+#     "CentOS-Stream-GenericCloud-9-latest.x86_64.$IMAGE_TYPE"
+# )
 
+declare -a IMAGES
 declare -a VMS_PURPOSE=(
     "openstack"
     "dpdk"
+    "k8s"
 )
 
 declare -a KVM_NETWORKS=(
@@ -53,7 +56,6 @@ clear='\033[0m'
 
 CLOUD_INIT_INPUT="root-ssh-key=$PRIVATE_KEY"
 #CLOUD_INIT_INPUT="root-password-generate=on"
-# CLOUD_INIT_INPUT="root-ssh-key=/home/sumit/.ssh/id_rsa.pub"
 # #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data.yml'"
 # #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
 # #CLOUD_INIT_INPUT="root-password-generate=on,user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
@@ -109,6 +111,12 @@ function download_image(){
     success "\nINFO: Image downloaded successfully and copied to image store: $IMAGE_TEMPLATE_STORE\n"
 }
 
+function list_images_from_artifactory(){
+    for i in $(cd $IMAGE_TEMPLATE_STORE && ls *.qcow2|tr ' ' '\n');do
+        IMAGES+=($i)
+    done
+}
+
 # function vm_disk_cleanup(){
 #     vm=$1
 #     vm_disk=$2
@@ -129,10 +137,11 @@ function download_image(){
 function vm_disks(){
 	vm=$1
 	variant_name=$2
+    image_name=$3
 	DEST_IMAGE_TYPE="${variant_name}.qcow2"
 	VM_ROOT_DISK="${IMAGES_STORE}/${vm}-${DEST_IMAGE_TYPE}"
 	if [[ ! -f "${VM_ROOT_DISK}" ]];then
-		sudo cp $IMAGE_TEMPLATE_STORE/$image_full_name $VM_ROOT_DISK
+		sudo cp $IMAGE_TEMPLATE_STORE/$image_name $VM_ROOT_DISK
 		sudo chmod 644 $VM_ROOT_DISK
 		success "\nCreated VM Disk: $VM_ROOT_DISK"
     else
@@ -175,9 +184,8 @@ function vm_install(){
         sudo virt-install --name $vm --memory $MEM --vcpu $VCPU --cpu host \
         --boot hd --disk $DISK --import \
         --osinfo detect=on,require=on,name=$VARIANT --noautoconsole \
-        ${network_params[@]}
-        # --cloud-init $CLOUD_INIT_INPUT \ Fix me
-        # --network network="${KVM_NETWORKS[0]}",model=virtio --network network="${KVM_NETWORKS[1]}",model=virtio
+        ${network_params[@]} \
+        --cloud-init $CLOUD_INIT_INPUT
         # --extra-args $ip_extra_args
         sleep 30
     else
@@ -193,10 +201,11 @@ function create_inventory_file(){
 cat > $INVENTORY_FILE <<EOF
 [all:vars]
 ansible_user=root
-ansible_password=redhat
+ansible_ssh_private_key_file=$PRIVATE_KEY  
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
 }
+
 function get_vm_ips(){
     vm=$1
     vm_ips=$(sudo virsh domifaddr $vm|awk '/vnet/{print $4}'|cut -d'/' -f1|xargs)

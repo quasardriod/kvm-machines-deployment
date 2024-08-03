@@ -1,5 +1,6 @@
 ubuntu_net_config_file: /etc/netplan/50-cloud-init.yaml
 grub_default_param: "quiet splash console=tty0 console=ttyS0,115200 net.ifnames=0 biosdevname=0"
-grub_param: "console=tty0 console=ttyS0,115200 net.ifnames=0 biosdevname=0"
-blacklist_grub_param: "ipv6.disable=1"
+grub_param:
+  add: "console=tty0 console=ttyS0,115200 net.ifnames=0 biosdevname=0"
+  remove: "ipv6.disable=1" # Remove task is handled using blacklisted-grub-params
 update_grub: false

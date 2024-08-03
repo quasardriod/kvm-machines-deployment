@@ -1,0 +1,15 @@
+
+- name: os-tuning | Set fact blacklist_grub_params
+  ansible.builtin.set_fact:
+    blacklist_grub_params: "{{ grub_param.remove.split(' ') }}"
+
+- name: os-tuning | Show blacklist_grub_params
+  ansible.builtin.debug:
+    var: blacklist_grub_params
+
+- name: os-tuning | Set fact update_grub to remove params
+  ansible.builtin.set_fact:
+    update_grub: true
+  when:
+  - grub_current is search(item)
+  with_items: "{{ blacklist_grub_params }}"

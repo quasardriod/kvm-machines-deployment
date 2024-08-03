@@ -34,11 +34,29 @@ dpdk:
 
 vms:
 - type: machine
-  name: kolla-deployer
-  cpu: 2
-  memory: 2048
-  count: 1
+  name: k8s
+  cpu: 4
+  memory: 4096
+  count: 2
   nic: 1
   networks:
   - default
 
+k8s:
+- type: master
+  name: k8s-master
+  cpu: 4
+  memory: 4096
+  count: 1
+  nic: 1
+  networks: 
+  - default
+- type: worker
+  name: k8s-w01
+  cpu: 4
+  memory: 4096
+  count: 1
+  nic: 1
+  networks: 
+  - default
+  

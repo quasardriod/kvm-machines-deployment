@@ -1,0 +1,18 @@
+
+- hosts: all
+  gather_facts: true
+
+  pre_tasks:
+
+  tasks:
+  - name: Include os-configuration role
+    ansible.builtin.include_role:
+      name: os-configuration
+
+#  - name: Include os-tuning role to setup vconsole, and disable biosdevname
+#    ansible.builtin.include_role:
+#      name: os-tuning
+
+  # - name: Configure an Ethernet connection with static IP
+  #   ansible.builtin.include_role:
+  #     name: fedora.linux_system_roles.network

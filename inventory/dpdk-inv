@@ -1,6 +1,0 @@
-dpdk02 ansible_host=192.168.10.125
-dpdk01 ansible_host=192.168.10.104
-[all:vars]
-ansible_user=root
-ansible_password=redhat
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'

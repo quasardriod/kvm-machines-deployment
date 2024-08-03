@@ -7,6 +7,6 @@ if [ ! -f $1 ];then
 fi
 
 MACHINES_INVENTORY=$1
-PB="playbooks/kvm-configure-guests.yml"
+PB="playbooks/kvm-guests.yml"
 
 ansible-playbook -i $MACHINES_INVENTORY $PB

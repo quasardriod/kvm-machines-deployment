@@ -4,6 +4,7 @@ set -eo pipefail
 source scripts/constant.sh
 
 function image_selector(){
+	list_images_from_artifactory
 	info "\nINFO: Select QCOW2 Linux images from below list...\n"
 	list_images
 	read -p "Image number [0]:  " _image_number
@@ -14,14 +15,13 @@ function image_selector(){
 		exit 1
 	fi
 	image_name=${IMAGES[$_image_number]}
-	image_full_name=$image_name.$IMAGE_TYPE
 	
-	success "\n-> Selected image: $image_full_name\n"
+	success "\n-> Selected image: $image_name\n"
 
-	if [ ! -f $IMAGE_TEMPLATE_STORE/$image_full_name ];then
-		download_image $image_full_name
+	if [ ! -f $IMAGE_TEMPLATE_STORE/$image_name ];then
+		download_image $image_name
 	else
-		success "INFO: Image $image_full_name already present in Image Store: $IMAGE_TEMPLATE_STORE\n"
+		success "INFO: Image $image_name already present in Image Store: $IMAGE_TEMPLATE_STORE\n"
 	fi
 }
 
@@ -111,7 +111,7 @@ function set_vms_properties(){
 			info "\nINFO: Setting virtual disk..."
 			
 			# vm_disks function will provide VM_ROOT_DISK
-			vm_disks $v $variant_name
+			vm_disks $v $variant_name $image_name
 			
 			# Create VM
 			# vm_install expects: vm=$1,DISK=$2,MEM=$3,VCPU=$4,VARIANT=$5
@@ -127,7 +127,7 @@ function set_vms_properties(){
 			fi
 			for ip in ${vm_ips};do
 				if ! grep -Eq ^$v $INVENTORY_FILE;then
-					sed -i "1i ${v} ansible_host=${ip}" $INVENTORY_FILE
+					sed -i "1i ${v} ansible_host=${ip} machine_type=${machine_role}" $INVENTORY_FILE
 				fi
 				vm_ansible_test $v
 				break

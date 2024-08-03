@@ -9,7 +9,6 @@
 - [Interface Binding](#interface-binding)
 
 ## Hugepages
-
 Hugepages being set using `dpdk.yml` playbook. DPDK also provides `dpdk-hugepages.py` utility to set hugepages on system.
 ```bash
 ./usertools/dpdk-hugepages.py

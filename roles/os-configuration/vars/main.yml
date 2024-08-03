@@ -1,0 +1,7 @@
+common_packages:
+- nmstate
+- vim
+- make
+- python3-pip
+- curl
+- wget

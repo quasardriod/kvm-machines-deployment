@@ -11,28 +11,22 @@
 
 - name: os-configuration | Install required packages
   ansible.builtin.package:
-    name:
-    - nmstate
-    - vim
+    name: "{{ common_packages }}"
     state: latest
-  when: ansible_os_family in ["RedHat"]
 
-# - name: Install packages on Ubuntu
-#   ansible.builtin.apt:
-#     name:
-#     - sshpass
-#     - make
-#     - python3-pip
-#     - apt-transport-https
-#     - ca-certificates
-#     - curl
-#     state: latest
-#     update_cache: yes
-#   register: _install_pkg
-#   retries: 3
-#   delay: 5
-#   until: _install_pkg is success
-#   when: ansible_distribution == "Ubuntu"
+- name: Install packages on Ubuntu
+  ansible.builtin.apt:
+    name:
+    - sshpass
+    - apt-transport-https
+    - ca-certificates
+    state: latest
+    update_cache: yes
+  register: _install_pkg
+  retries: 3
+  delay: 5
+  until: _install_pkg is success
+  when: ansible_distribution == "Ubuntu"
 
 # - name: Set NOPASSWD for {{ansible_user}}
 #   ansible.builtin.lineinfile:
