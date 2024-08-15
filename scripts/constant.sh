@@ -1,49 +1,6 @@
 #!/bin/bash
 
-ROCKY_IMAGE_SOURCE="https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
-IMAGE_TYPE="qcow2"
-IMAGE_TEMPLATE_STORE="/var/lib/libvirt/images/artifactory"
-# IMAGES_STORE="/vms"
-IMAGES_STORE="/var/lib/libvirt/images"
-PRIVATE_KEY="$HOME/.ssh/id_rsa.pub"
-
-declare -a NIC_MODELS=(
-    "virtio"
-)
-
-# virt-install --os-variant list
-declare -a VARIANTS=(
-    "rocky9"
-    "centos-stream9"
-    
-)
-
-# declare -a IMAGES=(
-#     "rocky9-template.$IMAGE_TYPE"
-# 	"Rocky-9-GenericCloud-LVM.latest.x86_64.$IMAGE_TYPE"
-# 	"Rocky-9-GenericCloud-LVM-9.4-20240609.0.x86_64.$IMAGE_TYPE"
-#     "CentOS-Stream-GenericCloud-9-latest.x86_64.$IMAGE_TYPE"
-# )
-
-declare -a IMAGES
-declare -a VMS_PURPOSE=(
-    "openstack"
-    "dpdk"
-    "k8s"
-)
-
-declare -a KVM_NETWORKS=(
-    "default"
-    "tenant"
-)
-
-# Define the index of default inputs
-default_image=0
-default_variant=0
-default_deployment=0
-
-VMS_DATA="data.yaml"
-
+##### Block to color message output
 # Color variables
 red='\033[0;31m'
 green='\033[0;32m'
@@ -53,12 +10,6 @@ magenta='\033[0;35m'
 cyan='\033[0;36m'
 # Clear the color after that
 clear='\033[0m'
-
-CLOUD_INIT_INPUT="root-ssh-key=$PRIVATE_KEY"
-#CLOUD_INIT_INPUT="root-password-generate=on"
-# #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data.yml'"
-# #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
-# #CLOUD_INIT_INPUT="root-password-generate=on,user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
 
 function info(){
     printf "${cyan}$1${clear}"
@@ -79,6 +30,56 @@ function filtered_data(){
 function info_y(){
     printf "${yellow}$1${clear}"
 }
+#########
+
+USER_INFRA_ENV_INPUT="scripts/constant.yaml"
+
+ROCKY_IMAGE_SOURCE=$(yq .ROCKY_IMAGE_SOURCE $USER_INFRA_ENV_INPUT)
+IMAGE_TYPE="qcow2"
+IMAGE_TEMPLATE_STORE=$(yq .IMAGE_TEMPLATE_STORE $USER_INFRA_ENV_INPUT)
+IMAGES_STORE=$(yq .IMAGES_STORE $USER_INFRA_ENV_INPUT)
+SSH_PUB_KEY=$(yq .SSH_PUB_KEY $USER_INFRA_ENV_INPUT)
+
+NIC_MODELS="virtio"
+
+# Check provided ssh public key path
+[ ! -f $SSH_PUB_KEY ] && error "\nERROR: SSH Public Key $SSH_PUB_KEY not found on localhost\n" && exit 1
+
+# Append variants in VARIANTS from yaml
+# virt-install --os-variant list
+declare -a VARIANTS=()
+for _v in $(yq .VARIANTS[] $USER_INFRA_ENV_INPUT);do
+    VARIANTS+=($_v)
+done
+
+# Append kvm networks in KVM_NETWORKS from yaml
+declare -a KVM_NETWORKS=()
+for _n in $(yq .KVM_NETWORKS[] $USER_INFRA_ENV_INPUT);do
+    KVM_NETWORKS+=($_n)
+done
+
+declare -a IMAGES
+
+# Define the index of default inputs
+default_image=0
+default_variant=0
+
+: ${VMS_DATA:="$(yq .VMS_DATA $USER_INFRA_ENV_INPUT)"}
+
+# VMS_PURPOSE: Possible app deployment you will do on VMs
+declare -a VMS_PURPOSE=()
+
+for _v in $(yq 'keys|.[]' $VMS_DATA);do
+    VMS_PURPOSE+=($_v)
+done
+
+
+CLOUD_INIT_INPUT="root-ssh-key=$SSH_PUB_KEY"
+#CLOUD_INIT_INPUT="root-password-generate=on"
+# #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data.yml'"
+# #CLOUD_INIT_INPUT="user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
+# #CLOUD_INIT_INPUT="root-password-generate=on,user-data='/home/sumit/Public/dpdk/user-data2.yaml'"
+
 
 function list_images(){
 	for i in ${!IMAGES[@]};do
@@ -173,7 +174,7 @@ function vm_install(){
     network_params=()
     for n in $(yq ".\"$DEPLOYMENT_TYPE\"[]|select(.name == \"$common_name\").networks" $VMS_DATA);do
         if [[ $n =~ ^[a-zA-Z] ]];then
-            network_params+=("--network network=$n,model=${NIC_MODELS[0]}")
+            network_params+=("--network network=$n,model=$NIC_MODELS")
         fi
     done
 
@@ -201,7 +202,6 @@ function create_inventory_file(){
 cat > $INVENTORY_FILE <<EOF
 [all:vars]
 ansible_user=root
-ansible_ssh_private_key_file=$PRIVATE_KEY  
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
 }

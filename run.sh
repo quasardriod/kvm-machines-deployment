@@ -43,9 +43,10 @@ function variant_selector(){
 function read_vms_data(){
 	info "\nINFO: Select deployment type on VMs...\n"
 	list_vms_purpose
-	read -p "Deployment Type [0]: " choice
+	read -p "Select Index from above list: " choice
 	if [[ -z $choice ]];then
-		choice=$default_deployment
+		error "\nERROR: No input provided\n"
+		exit 1
 	elif ! echo ${!VMS_PURPOSE[@]}|grep -E -q $choice;then
 		error "\nERROR: Out of index\n"
 		exit 1
@@ -78,8 +79,8 @@ function set_vms_properties(){
 		exit 1
 	fi
 	
-	info "\nINFO: Following VMs will be created for...\n"
-	create_inventory_file $DEPLOYMENT_TYPE
+	info "\nINFO: Found following machines user requested to create...\n"
+	# create_inventory_file $DEPLOYMENT_TYPE
 	
 	for i in $_seq;do
 		declare -a VMS_TO_BE_CREATED=()
@@ -113,26 +114,33 @@ function set_vms_properties(){
 			# vm_disks function will provide VM_ROOT_DISK
 			vm_disks $v $variant_name $image_name
 			
-			# Create VM
-			# vm_install expects: vm=$1,DISK=$2,MEM=$3,VCPU=$4,VARIANT=$5
-			# vm_install $v "$VM_ROOT_DISK" $memory $cpu $variant_name $common_name
-			vm_install $v "$VM_ROOT_DISK" $variant_name $DEPLOYMENT_TYPE $common_name
-
-			# Test network connectivity
-			get_vm_ips $v
-
-			if [ -z "${vm_ips}" ];then
-				error "\nERROR: Failed to fetch IPs of VM: $v\n"
-				exit 1
-			fi
-			for ip in ${vm_ips};do
-				if ! grep -Eq ^$v $INVENTORY_FILE;then
-					sed -i "1i ${v} ansible_host=${ip} machine_type=${machine_role}" $INVENTORY_FILE
+			# Check if VM already exists
+			if sudo virsh dominfo $vm > /dev/null 2>&1;then
+				success "\n-> VM $vm is already exists.\n"
+				vm_state=$(sudo virsh dominfo $vm|grep -E ^State|cut -d':' -f2|xargs)
+				if [ "$vm_state" != "running" ];then
+					info_y "-> VM $vm is not running.\n"
 				fi
-				vm_ansible_test $v
-				break
-			done
-			info_y "\n========= Completed VM: $v ==========\n"
+			else
+				# Create VM
+				# vm_install expects: vm=$1,DISK=$2,MEM=$3,VCPU=$4,VARIANT=$5
+				# vm_install $v "$VM_ROOT_DISK" $memory $cpu $variant_name $common_name
+				vm_install $v "$VM_ROOT_DISK" $variant_name $DEPLOYMENT_TYPE $common_name
+				get_vm_ips $v
+
+				if [ -z "${vm_ips}" ];then
+					error "\nERROR: Failed to fetch IPs of VM: $v\n"
+					exit 1
+				fi
+				for ip in ${vm_ips};do
+					if ! grep -Eq ^$v $INVENTORY_FILE;then
+						sed -i "1i ${v} ansible_host=${ip} machine_type=${machine_role}" $INVENTORY_FILE
+					fi
+					vm_ansible_test $v
+					break
+				done
+				info_y "\n========= Completed VM: $v ==========\n"
+			fi
 		done
 	done
 }

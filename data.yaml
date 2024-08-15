@@ -49,14 +49,14 @@ k8s:
   memory: 4096
   count: 1
   nic: 1
-  networks: 
+  networks:
   - default
 - type: worker
-  name: k8s-w01
-  cpu: 4
-  memory: 4096
-  count: 1
+  name: k8s-w
+  cpu: 2
+  memory: 2048
+  count: 2
   nic: 1
-  networks: 
+  networks:
   - default
-  
+
