@@ -1,13 +1,14 @@
 - [Introduction](#introduction)
 - [Required Params](#required-params)
 - [Define New VM details](#define-new-vm-details)
-- [Create VM](#create-vm)
+- [Deployment and Management of KVM guests](#deployment-and-management-of-kvm-guests)
+  - [Create VMs](#create-vms)
 
 ## Introduction
 [What is KVM](https://www.redhat.com/en/topics/virtualization/what-is-KVM)
 
 ## Required Params
-[constant.yaml](./scripts/constant.yaml) is used to define necessary params for KVM guests deployment. **User must** review `constant.yaml` for detailed information and make changes as required to match your environment.
+[config.yaml](./scripts/config.yaml) is used to define necessary params for KVM guests deployment. **User must** review [config.yaml](./scripts/config.yaml) for detailed information and make changes as required to match your environment.
 
 ## Define New VM details
 By default [data.yaml](./data.yaml) is used to define new VMs you want to create. You can use your own custom file name.
@@ -43,13 +44,20 @@ k8s:
   - default
 ```
 
-## Create VM
-- With default [data.yaml](./data.yaml).
+## Deployment and Management of KVM guests
+### Create VMs
+
+**NOTE:** By default `SSH_PUB_KEY='$HOME/.ssh/id_rsa.pub'` ssh public key will be injected to VMs using `cloud-init` while creating machines. `SSH_PUB_KEY` is defined in [include-functions.sh](./scripts/include-functions.sh).
+To use any other public key use below method.
+```bash
+SSH_PUB_KEY="<full path ssh public key>" ./run.sh -b
+```
+- Create VMs using default [data.yaml](./data.yaml)
 ```bash
 ./run.sh -b
 ```
 
-- With any custom file.
+- Create VMs using custom data input
 ```bash
-VMS_DATA="<full path of the file>" ./run.sh -b
+VMS_DATA="<full path of the yaml file>" ./run.sh -b
 ```

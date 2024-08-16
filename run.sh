@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -eo pipefail
-source scripts/constant.sh
 
 function image_selector(){
 	list_images_from_artifactory
@@ -80,7 +79,7 @@ function set_vms_properties(){
 	fi
 	
 	info "\nINFO: Found following machines user requested to create...\n"
-	# create_inventory_file $DEPLOYMENT_TYPE
+	create_inventory_file $DEPLOYMENT_TYPE
 	
 	for i in $_seq;do
 		declare -a VMS_TO_BE_CREATED=()
@@ -115,23 +114,25 @@ function set_vms_properties(){
 			vm_disks $v $variant_name $image_name
 			
 			# Check if VM already exists
-			if sudo virsh dominfo $vm > /dev/null 2>&1;then
-				success "\n-> VM $vm is already exists.\n"
-				vm_state=$(sudo virsh dominfo $vm|grep -E ^State|cut -d':' -f2|xargs)
+			if sudo virsh dominfo $v > /dev/null 2>&1;then
+				success "\n-> VM $v is already exists.\n"
+				vm_state=$(sudo virsh dominfo $v|grep -E ^State|cut -d':' -f2|xargs)
 				if [ "$vm_state" != "running" ];then
-					info_y "-> VM $vm is not running.\n"
+					info_y "-> VM $v is not running.\n"
 				fi
 			else
 				# Create VM
-				# vm_install expects: vm=$1,DISK=$2,MEM=$3,VCPU=$4,VARIANT=$5
-				# vm_install $v "$VM_ROOT_DISK" $memory $cpu $variant_name $common_name
+				# vm_install expects: vm=$1,DISK=$2,VARIANT=$3,DEPLOYMENT_TYPE=$4,common_name=$5
 				vm_install $v "$VM_ROOT_DISK" $variant_name $DEPLOYMENT_TYPE $common_name
-				get_vm_ips $v
-
+				vm_ips=$(sudo virsh domifaddr $v|awk '/vnet/{print $4}'|cut -d'/' -f1|xargs)
 				if [ -z "${vm_ips}" ];then
 					error "\nERROR: Failed to fetch IPs of VM: $v\n"
 					exit 1
 				fi
+
+				# Check for inventory file
+				[ ! -f $INVENTORY_FILE ] && error "\nERROR: $INVENTORY_FILE not found" && exit 1
+
 				for ip in ${vm_ips};do
 					if ! grep -Eq ^$v $INVENTORY_FILE;then
 						sed -i "1i ${v} ansible_host=${ip} machine_type=${machine_role}" $INVENTORY_FILE
@@ -156,6 +157,7 @@ function vm_undefine(){
 }
 
 function main(){
+	source scripts/include-functions.sh
 	image_selector
 	variant_selector
 	read_vms_data

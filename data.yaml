@@ -33,11 +33,11 @@ dpdk:
   - tenant
 
 vms:
-- type: machine
-  name: k8s
-  cpu: 4
-  memory: 4096
-  count: 2
+- type: localstack
+  name: localstack2
+  cpu: 2
+  memory: 2048
+  count: 1
   nic: 1
   networks:
   - default
