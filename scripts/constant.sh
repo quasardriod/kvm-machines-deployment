@@ -97,4 +97,4 @@ function set_virsh_connection(){
     fi
     info_y "INFO: Using virsh command: $VIRSH_CMD\n"
 }
-set_virsh_connection
+

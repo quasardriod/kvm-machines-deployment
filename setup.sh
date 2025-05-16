@@ -64,6 +64,8 @@ function main(){
 }
 
 function kvm_host_capabilities(){
+    set_virsh_connection
+    
     # Show available images and properties
     info_y "\nKVM hypervisor capabilities:\n"
     info_y "------------------------------------------------\n"
