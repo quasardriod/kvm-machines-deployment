@@ -1,0 +1,38 @@
+
+- hosts: all
+  gather_facts: true
+
+  vars:
+    install_repo:
+    - centos-release-nfv-openvswitch
+    - centos-release-nfv-common
+    packages:
+    - openvswitch3.4
+
+  tasks:
+  - name: Install nfv-openvswitch repo rpm
+    ansible.builtin.dnf:
+      name: "{{ install_repo }}"
+      state: latest
+
+  # Fix me
+  - name: Disable SELinux
+    ansible.posix.selinux:
+      state: disabled
+    register: _disable_selinux
+
+  - name: Reboot host
+    ansible.builtin.reboot:
+      reboot_timeout: 120
+    when: _disable_selinux is changed
+
+  - name: Install openvswitch packages
+    ansible.builtin.dnf:
+      name: "{{ packages }}"
+      state: latest
+
+  - name: Start and enable openvswitch service
+    ansible.builtin.systemd:
+      name: openvswitch
+      state: started
+      enabled: yes

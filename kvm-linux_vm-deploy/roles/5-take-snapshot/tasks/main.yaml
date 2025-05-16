@@ -1,8 +1,0 @@
----
-
-- include: 1-create-masters-snapshot.yaml
-- include: 2-create-workers-snapshot.yaml
-- include: 3-revert-masters-snapshot.yaml
-- include: 4-revert-workers-snapshot.yaml
-- include: 5-create-client-snapshot.yaml
-- include: 6-revert-client-snapshot.yaml

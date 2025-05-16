@@ -1,0 +1,18 @@
+---
+# build_artifacts_dir coming from setup.sh
+- name: artifacts | Build artifacts location
+  ansible.builtin.debug:
+    msg: "Build artifacts will be stored in {{ build_artifacts_dir }}"
+
+# Generate ansible inventory from new created machines
+- name: kvm-guest | Generate ansible inventory from new created machines
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/ansible-inventory.j2"
+    dest: "{{ inventory_artifact }}"
+    mode: 644
+  vars:
+    machines: "{{ created_machine_properties }}"
+
+- name: kvm-guest | Show generated ansible inventory
+  ansible.builtin.debug:
+    msg: "Generated Ansible inventory file is {{ inventory_artifact }}"

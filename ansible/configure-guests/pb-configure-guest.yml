@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: true
+  become: true
+  become_method: sudo
+  become_user: root
+
+  tasks:
+  - name: Update OS
+    ansible.builtin.dnf:
+      name: "*"
+      state: latest
+    when: ansible_os_family == "RedHat"

@@ -1,8 +1,0 @@
----
-
-- name: 6-vm-delete | Delete kube VMs
-  shell: |
-    for vm in `virsh list --all|egrep -i kube|awk '{print $2}'`; do
-      virsh undefine $vm
-      rm -rf /vms/$vm.qcow2
-    done

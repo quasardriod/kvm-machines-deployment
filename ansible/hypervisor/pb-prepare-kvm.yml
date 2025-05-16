@@ -1,0 +1,85 @@
+---
+
+- hosts: all
+  gather_facts: true
+  become: true
+  become_method: sudo
+  become_user: root
+
+  vars_files:
+  - ../vars/cloud-images.yml
+
+  vars:
+    image_lookup: "{{ lookup('fileglob', IMAGE_TEMPLATE_STORE + '/*.qcow2') }}"
+    images_list_in_store: "{{ image_lookup|split(',') }}"
+
+  tasks:
+  - name: prepare-kvm | Ensure libvirtd is running
+    ansible.builtin.systemd:
+      name: libvirtd
+      state: started
+      enabled: true
+    when: ansible_os_family == "RedHat"
+
+  - name: prepare-kvm | Ensure {{ IMAGES_STORE }} directory exists
+    ansible.builtin.file:
+      path: "{{ IMAGES_STORE }}"
+      state: directory
+      mode: '0755'
+      owner: root
+      group: root
+
+  - name: prepare-kvm | Ensure {{ IMAGE_TEMPLATE_STORE }} directory exists
+    ansible.builtin.file:
+      path: "{{ IMAGE_TEMPLATE_STORE }}"
+      state: directory
+      mode: '0755'
+      owner: root
+      group: root
+
+  - name: prepare-kvm | Get  list of all variants available on the host
+    ansible.builtin.shell: virt-install --os-variant list
+    environment:
+      LIBVIRT_DEFAULT_URI: "{{ LIBVIRT_DEFAULT_URI }}"
+    register: virt_install_list_variants
+    changed_when: false
+
+  - name: prepare-kvm | Ensure 'VARIANTS' are available on the host
+    ansible.builtin.assert:
+      that:
+      - item in virt_install_list_variants.stdout_lines
+      fail_msg: "The variant '{{ item }}' is not available on the host"
+      success_msg: "The variant '{{ item }}' is available on the host"
+      msg: "The variant '{{ item }}' is not available on the host"
+    with_items: "{{ VARIANTS }}"
+    when: ansible_os_family == "RedHat"
+
+  - name: prepare-kvm | Get list of all networks available on the host
+    ansible.builtin.shell: virsh net-list|egrep 'active'|awk '{print $1}'
+    environment:
+      LIBVIRT_DEFAULT_URI: "{{ LIBVIRT_DEFAULT_URI }}"
+    register: virt_install_list_networks
+    changed_when: false
+    failed_when: false
+    when: ansible_os_family == "RedHat"
+
+  - name: prepare-kvm | Ensure 'KVM_NETWORKS' are available on the host
+    ansible.builtin.assert:
+      that:
+      - item in virt_install_list_networks.stdout_lines
+      fail_msg: "The network '{{ item }}' is not available on the host"
+      success_msg: "The network '{{ item }}' is available on the host"
+      msg: "The network '{{ item }}' is not available on the host"
+    with_items: "{{ KVM_NETWORKS }}"
+    when: ansible_os_family == "RedHat"
+
+  - name: prepare-kvm | Show available qcow2 images in store
+    ansible.builtin.debug:
+      msg: "{{ images_list_in_store }}"
+
+  - name: prepare-kvm | Ensure 'cloud_images' are available on kvm host
+    ansible.builtin.assert:
+      that:
+      - images_list_in_store is search(item['images'][0])
+    with_items: "{{ cloud_images }}"
+  # TODO: Download the images from the internet if not available on the host

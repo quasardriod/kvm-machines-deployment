@@ -1,9 +1,0 @@
----
-
-
-- name: Revert worker VMs snapshot
-  command: virsh snapshot-revert "{{item}}" "{{item}}"-all-predone
-  with_items:
-    - "{{node1}}"
-    - "{{node2}}"
-  ignore_errors: false

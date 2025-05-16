@@ -1,0 +1,113 @@
+---
+
+- hosts: all
+  gather_facts: true
+  become: true
+  become_method: sudo
+  become_user: root
+
+  vars_files:
+  - ../vars/cloud-images.yml
+
+  vars:
+    user_machine_variants: []
+    user_machine_images: []
+    created_machine_properties: []
+
+  tasks:
+  - name: kvm-guest | Ensure libvirtd is running
+    ansible.builtin.systemd:
+      name: libvirtd
+      state: started
+      enabled: true
+    when: ansible_os_family == "RedHat"
+
+  - name: kvm-guest | Read guest build inputs
+    ansible.builtin.debug:
+      var: kvm_guest_machines
+
+  # Block to ensure all machines requested for a single variant
+  - name: kvm-guest | Read guests variants
+    ansible.builtin.set_fact:
+      user_machine_variants: "{{ user_machine_variants + [item.variant] }}"
+    loop: "{{ kvm_guest_machines }}"
+    when: item.variant not in user_machine_variants
+
+  - name: kvm-guest | Assert user should not request more than one variant
+    ansible.builtin.assert:
+      that:
+      - user_machine_variants|length == 1
+      fail_msg:
+      - "User should not request more than one variant"
+      - "Or user did not provide a variant"
+
+  - name: kvm-guest | Ensure user provided variant is in 'VARIANTS' list
+    ansible.builtin.assert:
+      that:
+      - item in VARIANTS
+      fail_msg: "The variant '{{ item }}' is not available on the host"
+      success_msg: "The variant '{{ item }}' is available on the host"
+    loop: "{{ user_machine_variants }}"
+
+  # Block to ensure all machines requested for a single image
+  - name: kvm-guest | Read guests images
+    ansible.builtin.set_fact:
+      user_machine_images: "{{ user_machine_images + [item.cloud_image] }}"
+    loop: "{{ kvm_guest_machines }}"
+    when:
+    - item.cloud_image != "" and item.cloud_image is defined
+    - item.cloud_image not in user_machine_images
+
+  - name: kvm-guest | Assert user should not request more than one image
+    ansible.builtin.assert:
+      that:
+      - user_machine_images|length <= 1
+      fail_msg: "User should not request more than one image"
+
+  - name: kvm-guest | Check if user requested image is supported
+    ansible.builtin.assert:
+      that:
+      - user_machine_images[0] in cloud_images[user_machine_variants[0]]
+      fail_msg: "The image '{{ user_machine_images[0] }}' is not available for the variant '{{ user_machine_variants[0] }}'"
+      success_msg: "The image '{{ user_machine_images[0] }}' is available for the variant '{{ user_machine_variants[0] }}'"
+    when: user_machine_images|length == 1
+
+  - name: kvm-guest | Set fact 'build_image' for user provided cloud_image
+    ansible.builtin.set_fact:
+      build_image: "{{ user_machine_images[0] }}"
+    when: user_machine_images|length == 1
+
+  - name: kvm-guest | Selecting image based on given variant as user has no requested specific image
+    ansible.builtin.debug:
+      msg: "No image provided by user, selecting image based on variant '{{ user_machine_variants[0] }}'"
+    when: user_machine_images|length == 0
+
+  - name: kvm-guest | Set fact 'build_image' for default image based on variant"
+    ansible.builtin.set_fact:
+      build_image: "{{ item.images[0] }}"
+      build_machine_variant: "{{ user_machine_variants[0] }}"
+    when:
+    - user_machine_images|length == 0
+    - item.variant == user_machine_variants[0]
+    loop: "{{ cloud_images }}"
+
+  - name: kvm-guest | Show selected image
+    ansible.builtin.debug:
+      msg: "Selected image '{{ build_image }}' for variant '{{ build_machine_variant }}'"
+
+  # include/build.yml will be called in include/disks.yml after disks are created
+  - name: kvm-guest | Include include/disks.yml
+    ansible.builtin.include_tasks: include/disks.yml
+    loop: "{{ kvm_guest_machines }}"
+    loop_control:
+      loop_var: vm
+    when: ansible_os_family == "RedHat"
+
+  - name: kvm-guest | Show created machines
+    ansible.builtin.debug:
+      var: created_machine_properties
+    when: created_machine_properties|length > 0
+
+  - name: kvm-guest | Call include/build-artifacts.yml
+    ansible.builtin.include_tasks: include/build-artifacts.yml
+    when: created_machine_properties|length > 0

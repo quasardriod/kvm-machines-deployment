@@ -1,63 +1,59 @@
 - [Introduction](#introduction)
-- [Required Params](#required-params)
-- [Define New VM details](#define-new-vm-details)
-- [Deployment and Management of KVM guests](#deployment-and-management-of-kvm-guests)
-  - [Create VMs](#create-vms)
+- [virsh connection to KVM host](#virsh-connection-to-kvm-host)
+  - [Set virsh for local KVM host](#set-virsh-for-local-kvm-host)
+  - [Set virsh to connect to a remote KVM host](#set-virsh-to-connect-to-a-remote-kvm-host)
+- [Tool Kit](#tool-kit)
+- [View KVM Host Capabilities](#view-kvm-host-capabilities)
+- [Prepare KVM host](#prepare-kvm-host)
+- [Build and Management of KVM guests](#build-and-management-of-kvm-guests)
 
 ## Introduction
-[What is KVM](https://www.redhat.com/en/topics/virtualization/what-is-KVM)
+- [What is KVM](https://www.redhat.com/en/topics/virtualization/what-is-KVM)
+---
 
-## Required Params
-[config.yaml](./scripts/config.yaml) is used to define necessary params for KVM guests deployment. **User must** review [config.yaml](./scripts/config.yaml) for detailed information and make changes as required to match your environment.
+## virsh connection to KVM host
+Review [qumu-connect](./docs/qemu-connect.md) for detailed information on `virsh` connection options, to manage guest VMs on remote KVM host. Review [constant.sh](./scripts/constant.sh) for `virsh` connection configuration code.
 
-## Define New VM details
-By default [data.yaml](./data.yaml) is used to define new VMs you want to create. You can use your own custom file name.
+### Set virsh for local KVM host
+*By default* [run.sh](./run.sh) will connect to local KVM host using:
+`export LIBVIRT_DEFAULT_URI=qemu:///system`
 
-```yaml
-dpdk:           # Target VM type or intended use or app you may deploy on these VMs
-- type: machine # VM role in app deployment. If not sure on specific role of VM, set `machine`
-  name: dpdk    # VM name
-  cpu: 4        # CPU
-  memory: 4096  # Memory
-  count: 2      # No. of machines to be created. If count is 1, machine name would be same as `name` defined above. If count is more than one, `01, 02` will be appended subsequently in `name` given above
-  nic: 2        # No. of Network interface attach to VM. Based on No. of nic, networks listed below will be used in order. Minimum 1.
-  networks:     # Provide KVM networks, minimum 1
-  - default
-  - tenant
+`virsh` command performs all operations on localhost as `root` user by using `sudo`. Without `sudo`, `qemu:///system` will prompt for password.
+  - If you are not running `run.sh` as root, ensure current user has sudo access with `nopasswd`.
 
-k8s:
-- type: master
-  name: k8s-master
-  cpu: 4
-  memory: 4096 
-  count: 1
-  nic: 1
-  networks: 
-  - default
-- type: worker
-  name: k8s-w
-  cpu: 2
-  memory: 2048
-  count: 2
-  nic: 1
-  networks: 
-  - default
-```
-
-## Deployment and Management of KVM guests
-### Create VMs
-
-**NOTE:** By default `SSH_PUB_KEY='$HOME/.ssh/id_rsa.pub'` ssh public key will be injected to VMs using `cloud-init` while creating machines. `SSH_PUB_KEY` is defined in [include-functions.sh](./scripts/include-functions.sh).
-To use any other public key use below method.
+### Set virsh to connect to a remote KVM host
+- Configure password less authentication for remote machine `root` user.
+- Export `LIBVIRT_DEFAULT_URI` param as below:
 ```bash
-SSH_PUB_KEY="<full path ssh public key>" ./run.sh -b
+export LIBVIRT_DEFAULT_URI=qemu+ssh://root@[hostname/IP]/system
 ```
-- Create VMs using default [data.yaml](./data.yaml)
+---
+## Tool Kit
+`setup.sh` has been provided for KVM host and guest deployment and management.
 ```bash
-./run.sh -b
+./setup.sh -h
 ```
+---
 
-- Create VMs using custom data input
+## View KVM Host Capabilities
+Run below command to list supported capabilities on target KVM host.
+
 ```bash
-VMS_DATA="<full path of the yaml file>" ./run.sh -b
+./setup.sh -i
 ```
+---
+
+## Prepare KVM host
+Run below command to prepare target KVM host for capabilities listed in `setup.sh -i`
+```bash
+./setup.sh -p
+```
+---
+
+## Build and Management of KVM guests
+Based on supported images & networks, create a yaml file for machines to be build for defined properties. Review [job-inputs.yml](./job-inputs.yml) for more information.
+
+```bash
+./setup.sh -m [job-inputs.yml]
+```
+---

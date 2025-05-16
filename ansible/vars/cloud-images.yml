@@ -1,0 +1,9 @@
+# variants are taken from inventory/group_vars/all.yml
+
+cloud_images:
+- variant: rocky9
+  images:
+  - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
+- variant: centos-stream9
+  images:
+  - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2

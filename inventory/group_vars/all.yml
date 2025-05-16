@@ -1,3 +1,17 @@
 pub_key_on_localhost: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
 install_root_pub_key: true
 root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"
+
+# Variables to define KVM host properties
+IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
+IMAGES_STORE: "/var/lib/libvirt/images"
+
+VARIANTS:
+- "rocky9"
+- "centos-stream9"
+
+KVM_NETWORKS:
+- default
+
+# SSH Public key to path on KVM host, this key will be injected in VM using cloud-init for user defined below
+CLOUD_USER: cloud-user

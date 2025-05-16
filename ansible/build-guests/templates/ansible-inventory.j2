@@ -1,0 +1,10 @@
+all:
+  hosts:
+{% for machine in machines %}
+    {{ machine.machine_name }}:
+      ansible_host: {{ machine.machine_ip }}
+      ansible_port: {{ machine.ssh_port | default(22) }}
+      ansible_connection: ssh
+      ansible_python_interpreter: /usr/bin/python3
+      ansible_user: {{ machine.cloud_user | default(CLOUD_USER) }}
+{% endfor %}

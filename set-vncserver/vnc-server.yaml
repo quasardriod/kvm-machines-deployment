@@ -1,5 +1,0 @@
----
-
-- hosts: Install tigervnc-server package
-  become: true
-  become_method: sudo

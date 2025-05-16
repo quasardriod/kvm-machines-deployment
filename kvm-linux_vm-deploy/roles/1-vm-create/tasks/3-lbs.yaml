@@ -1,8 +1,0 @@
----
-
-- name: Create load balancer VMs for K8s cluster using Ubuntu16.04 template
-  command: virt-clone -o "{{ubuntu_template}}" -n "{{item}}" -f "{{vms_disk_path}}"/"{{item}}".qcow2
-  with_items:
-      - "{{lb01}}"
-      - "{{lb02}}"
-  ignore_errors: false

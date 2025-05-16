@@ -1,0 +1,67 @@
+- name: build | Write out user provide cloud-init user data
+  ansible.builtin.copy:
+    content: "{{ vm.user_data }}"
+    dest: /tmp/{{ vm.name }}-user-data
+    mode: '0644'
+  when: vm.user_data is defined and vm.user_data != ""
+
+- name: build | Create {{ vm.name }} VM when user data is not defined
+  ansible.builtin.shell: |
+    virt-install --name {{ vm.name }} \
+    --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \
+    --boot hd --disk path={{ disk_path }},device=disk,bus=virtio,format=qcow2 \
+    --network network={{ vm.networks[0] }},model=virtio \
+    --os-variant {{ build_machine_variant }} \
+    --noautoconsole \
+    # --cloud-init  user-data={{ vm.user_data }} \
+    # --graphics none --console pty,target_type=serial --extra-args 'console=ttyS0,115200n8 serial' --noautoconsole
+  register: vm_create
+  when: vm.user_data is not defined or vm.user_data == ""
+  async: 600
+  poll: 0
+
+- name: build | Create {{ vm.name }} VM when user data is defined
+  ansible.builtin.shell: |
+    virt-install --name {{ vm.name }} \
+    --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \
+    --boot hd --disk path={{ disk_path }},device=disk,bus=virtio,format=qcow2 \
+    --network network={{ vm.networks[0] }},model=virtio \
+    --os-variant {{ build_machine_variant }} \
+    --noautoconsole \
+    --cloud-init  user-data=/tmp/{{ vm.name }}-user-data
+    # --graphics none --console pty,target_type=serial --extra-args 'console=ttyS0,115200n8 serial' --noautoconsole
+  register: vm_create
+  when: vm.user_data is defined or vm.user_data != ""
+  async: 600
+  poll: 0
+
+- name: build | Pause for 30 seconds
+  ansible.builtin.pause:
+    seconds: 30
+
+- name: build | Get {{ vm.name }} IP address
+  ansible.builtin.shell: |
+    virsh domifaddr {{ vm.name }} |awk '/ipv4/{print $4}'|cut -d'/' -f1
+  register: vm_ip
+  changed_when: false
+  failed_when: vm_ip.rc != 0
+
+- name: build | Wait for {{ vm.name }} to be up
+  ansible.builtin.wait_for:
+    port: 22
+    delay: 10
+    timeout: 300
+    state: started
+    host: "{{ vm_ip.stdout }}"
+  register: wait_for_vm
+  changed_when: false
+
+- name: build | Set fact machine_property
+  ansible.builtin.set_fact:
+    machine_property:
+      machine_name: "{{ vm.name }}"
+      machine_ip: "{{ vm_ip.stdout }}"
+
+- name: build | Append 'machine_property' in created_machine_properties
+  ansible.builtin.set_fact:
+    created_machine_properties: "{{ created_machine_properties + [machine_property] }}"

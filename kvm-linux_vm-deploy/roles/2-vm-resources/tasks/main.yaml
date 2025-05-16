@@ -1,7 +1,0 @@
----
-
-- include: 1-master.yml
-- include: 2-worker.yml
-#- include: 3-lbs.yml
-#- include: 4-client.yml
-- include: 5-restart-libvirtd.yaml

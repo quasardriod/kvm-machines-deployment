@@ -1,0 +1,73 @@
+
+- hosts: all
+  gather_facts: true
+
+  vars:
+    get_yq: "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64"
+    guest_images: "/var/lib/libvirt/images"
+    image_artifactory: "/var/lib/libvirt/images/artifactory"
+    kvm_packages:
+    - ansible-core
+    - bash-completion
+    - qemu-kvm
+    - virt-install
+    - virt-viewer
+    - libvirt
+    - virt-top
+    - libguestfs-tools
+    - dmidecode
+    - net-tools
+    - vim
+    - guestfs-tools
+    - yq
+    - epel-release
+    - epel-next-release
+    - wget
+
+  tasks:
+
+  - name: Install KVM related packages on RedHat Based systems
+    ansible.builtin.dnf:
+      name: "{{ kvm_packages }}"
+      state: latest
+    when: ansible_os_family == "RedHat"
+
+  - name: Start libvirtd
+    systemd:
+      name: libvirtd
+      state: started
+      enabled: yes
+
+  - name: Create image store directories
+    ansible.builtin.file:
+      path: "{{ item }}"
+      mode: 0755
+      state: directory
+      owner: root
+      group: root
+    with_items:
+    - "{{ guest_images }}"
+    - "{{ image_artifactory }}"
+
+  - name: Check if kvm module is loaded
+    ansible.builtin.shell: modinfo kvm
+    ignore_errors: true
+    register: _kvm_mod
+
+  - name: Reboot host
+    ansible.builtin.reboot:
+      connect_timeout: 30
+      test_command: uptime
+    when: _kvm_mod.rc != 0
+
+  - name: Run virt-host-validate
+    ansible.builtin.shell: virt-host-validate
+    register: _virt_validate
+    ignore_errors: true
+
+  - name: Run assert
+    ansible.builtin.assert:
+      that:
+      - not _virt_validate.stdout_lines is search('FAIL')
+      fail_msg:
+      - "'virt-host-validate' validation failed"

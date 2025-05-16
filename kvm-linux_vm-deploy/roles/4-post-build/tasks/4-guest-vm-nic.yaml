@@ -1,6 +1,0 @@
----
-- name: Get interface of guest VM OS
-  shell: for i in `cat /var/tmp/k8s-vms/k8s_vm_ips|awk 'FNR==1 {print}'`;do ssh -o StrictHostKeyChecking=no stack@$i ip link |grep 2:|awk 'FNR==1 {print $2}'|cut -d':' -f1;done
-  register: guestvm_nic
-- debug:
-   var: guestvm_nic.stdout

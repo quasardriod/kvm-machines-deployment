@@ -1,0 +1,74 @@
+# Prepare disk for guest VMs
+
+- name: disks | Show vm for that disk needs to be created
+  ansible.builtin.debug:
+    var: vm
+
+- name: build | Check if {{ vm.name }} already exists
+  ansible.builtin.command: >
+    virsh dominfo {{ vm.name }}
+  register: vm_stat
+  changed_when: false
+  ignore_errors: true
+
+- name: build | Remove if {{ vm.name }} exists
+  ansible.builtin.shell: |
+    virsh destroy {{ vm.name }}
+    sleep 10
+    virsh undefine {{ vm.name }} --remove-all-storage
+  register: vm_destroy
+  changed_when: vm_destroy.rc == 0
+  failed_when: vm_destroy.rc != 0
+  when: vm_stat.rc == 0
+
+- name: disks | Set disk path for {{ vm.name }}
+  ansible.builtin.set_fact:
+    disk_path: "{{ IMAGES_STORE }}/{{ vm.name }}-{{ build_machine_variant }}.qcow2"
+
+- name: disks | Show disk path for {{ vm.name }}
+  ansible.builtin.debug:
+    msg: "Disk path for {{ vm.name }} is {{ disk_path }}"
+
+- name: disks | Check if {{ disk_path }} already exists
+  ansible.builtin.stat:
+    path: "{{ disk_path }}"
+  register: disk_stat
+
+- name: disks | Remove if {{ disk_path }} exists
+  ansible.builtin.file:
+    path: "{{ disk_path }}"
+    state: absent
+  when: disk_stat.stat.exists == true
+
+- name: disks | Copy {{ build_image }} to {{ disk_path }}
+  ansible.builtin.copy:
+    src: "{{ IMAGE_TEMPLATE_STORE }}/{{ build_image }}"
+    dest: "{{ disk_path }}"
+    remote_src: yes
+    force: yes
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: disks | Increase {{ disk_path }} size to {{ vm.disk_size }}
+  ansible.builtin.command: >
+    qemu-img resize {{ disk_path }} {{ vm.disk_size }}
+  args:
+    creates: "{{ disk_path }}"
+  register: resize_disk
+  changed_when: resize_disk.rc == 0
+  failed_when: resize_disk.rc != 0
+  when: vm.disk_size is defined and vm.disk_size != ""
+
+- name: disks | Get {{ disk_path }} properties
+  ansible.builtin.command: >
+    qemu-img info {{ disk_path }}
+  register: disk_info
+  changed_when: false
+
+- name: disks | Show {{ disk_path }} properties
+  ansible.builtin.debug:
+    var: disk_info.stdout_lines
+
+- name: disks | Call include/build.yml
+  ansible.builtin.include_tasks: include/build.yml
