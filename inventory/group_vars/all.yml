@@ -6,12 +6,25 @@ root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"
 IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
 IMAGES_STORE: "/var/lib/libvirt/images"
 
-VARIANTS:
-- "rocky9"
-- "centos-stream9"
+cloud_images:
+- variant: rocky9
+  download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
+  images:
+  - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
+- variant: centos-stream9
+  download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
+  images:
+  - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
+
+VARIANTS: "{{ cloud_images | map(attribute='variant') | list }}"
 
 KVM_NETWORKS:
 - default
 
 # SSH Public key to path on KVM host, this key will be injected in VM using cloud-init for user defined below
 CLOUD_USER: cloud-user
+
+public_image_store:
+- download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
+  variant:
+  - "rocky9"

@@ -61,15 +61,17 @@ function set_virsh_connection(){
         exit 1
     fi
 
-    # Check if LIBVIRT_DEFAULT_URI is exported
-    if [ -z "$LIBVIRT_DEFAULT_URI" ] || [[ $LIBVIRT_DEFAULT_URI == "qemu:///session" ]]; then
-        # If not, set it to the default value for localhost
-        # This is the default value for libvirt on most systems
-        # and allows you to connect to the local hypervisor
-        # without specifying a URI.
-        info_y "INFO: Setting LIBVIRT_DEFAULT_URI to qemu:///system\n"
-        unset LIBVIRT_DEFAULT_URI
-        export LIBVIRT_DEFAULT_URI=qemu:///system
+    if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
+        error "\nERROR: qemu connection is not set\n"
+        error "Visit 'QEMU Connection' in 'README.md' for more information\n"
+        exit 1
+    fi
+    info_y "\nINFO: LIBVIRT_DEFAULT_URI is set to $LIBVIRT_DEFAULT_URI\n"
+    info "\nINFO: Preparing $LIBVIRT_DEFAULT_URI KVM host\n"
+    info "------------------------------------------------\n" 
+
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        # Run block when kvm connection is local: qemu:///system
         if [ "$(id -u)" -ne 0 ]; then
             # Check if the user has passwordless sudo privileges
             if ! sudo -n true &> /dev/null; then
@@ -86,14 +88,16 @@ function set_virsh_connection(){
         else
             export VIRSH_CMD="virsh"
         fi
-    else
-        info "INFO: User provided connection to remote KVM LIBVIRT_DEFAULT_URI: $LIBVIRT_DEFAULT_URI\n"
-        export VIRSH_CMD="virsh"
-        # Check connection to remote KVM
-        if ! $VIRSH_CMD -c $LIBVIRT_DEFAULT_URI list &> /dev/null; then
-            error "Unable to connect to remote KVM: $LIBVIRT_DEFAULT_URI. Please check your connection.\n"
+    fi
+
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+        # Run block when kvm connection to remote machine
+        # Check if the user has passwordless sudo privileges for virsh
+        if ! sudo virsh list &> /dev/null; then
+            error "You do not have passwordless sudo privileges for virsh. Please run the script as a user with passwordless sudo privileges for virsh.\n"
             exit 1
-        fi        
+        fi
+        export VIRSH_CMD="virsh"     
     fi
     info_y "INFO: Using virsh command: $VIRSH_CMD\n"
 }

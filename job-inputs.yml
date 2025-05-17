@@ -23,7 +23,7 @@ kvm_guest_machines:
   variant: rocky9
   cloud_image: ""
   vcpu: 4
-  ram: 4096
+  ram: 8192
   nic: 1
   networks:
   - default
@@ -35,7 +35,7 @@ kvm_guest_machines:
   variant: rocky9
   cloud_image: ""
   vcpu: 2
-  ram: 2048
+  ram: 4096
   nic: 1
   networks:
   - default

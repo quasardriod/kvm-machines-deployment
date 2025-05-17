@@ -2,16 +2,9 @@
 
 - hosts: all
   gather_facts: true
-  become: true
-  become_method: sudo
-  become_user: root
-
-  vars_files:
-  - ../vars/cloud-images.yml
 
   vars:
-    image_lookup: "{{ lookup('fileglob', IMAGE_TEMPLATE_STORE + '/*.qcow2') }}"
-    images_list_in_store: "{{ image_lookup|split(',') }}"
+    images_to_be_download: []
 
   tasks:
   - name: prepare-kvm | Ensure libvirtd is running
@@ -56,8 +49,6 @@
 
   - name: prepare-kvm | Get list of all networks available on the host
     ansible.builtin.shell: virsh net-list|egrep 'active'|awk '{print $1}'
-    environment:
-      LIBVIRT_DEFAULT_URI: "{{ LIBVIRT_DEFAULT_URI }}"
     register: virt_install_list_networks
     changed_when: false
     failed_when: false
@@ -73,13 +64,48 @@
     with_items: "{{ KVM_NETWORKS }}"
     when: ansible_os_family == "RedHat"
 
+  - name: prepare-kvm | Lookup qcow2 images in store
+    ansible.builtin.find:
+      paths: "{{ IMAGE_TEMPLATE_STORE }}"
+      patterns: "*.qcow2"
+      recurse: no
+      file_type: file
+    register: qcow2_images_list
+
+  - name: prepare-kvm | Set fact 'images_list_in_store'
+    ansible.builtin.set_fact:
+      images_list_in_store: "{{ qcow2_images_list.files | map(attribute='path') | list }}"
+
   - name: prepare-kvm | Show available qcow2 images in store
     ansible.builtin.debug:
       msg: "{{ images_list_in_store }}"
 
-  - name: prepare-kvm | Ensure 'cloud_images' are available on kvm host
-    ansible.builtin.assert:
-      that:
-      - images_list_in_store is search(item['images'][0])
-    with_items: "{{ cloud_images }}"
-  # TODO: Download the images from the internet if not available on the host
+  - name: prepare-kvm | Append 'cloud_images' to be downloaded from public image source
+    ansible.builtin.set_fact:
+      images_to_be_download: "{{ images_to_be_download + [{'variant': item[0].variant, 'download_uri': item[0].download_uri, 'image': item[1]}] }}"
+    with_nested:
+    - "{{ cloud_images }}"
+    - "{{ all_images }}"
+    when:
+    - item[1] in item[0].images
+    - images_list_in_store is not search(item[1])
+    loop_control:
+      label: "{{ item[0].variant }} - {{ item[1] }}"
+    vars:
+      all_images: "{{ cloud_images | map(attribute='images') | list | sum(start=[]) }}"
+      # base_name_list: "{{ cloud_images | map(attribute='variant') | map('regex_replace', '-.*|[0-9]', '') | list }}"
+
+  - name: prepare-kvm | Show images to be downloaded
+    ansible.builtin.debug:
+      msg: "{{ images_to_be_download }}"
+
+  - name: prepare-kvm | Download images from public image source
+    ansible.builtin.get_url:
+      url: "{{ item.download_uri }}/{{ item.image }}"
+      dest: "{{ IMAGE_TEMPLATE_STORE }}/"
+      mode: '0644'
+      owner: root
+      group: root
+    with_items: "{{ images_to_be_download }}"
+    when: images_to_be_download|length > 0
+    register: download_images

@@ -1,0 +1,10 @@
+all:
+  hosts:
+    remote-kvm-host:
+      ansible_host: 192.168.100.108
+      ansible_user: root
+      ansible_connection: ssh
+  children:
+    kvm_hosts:
+      hosts:
+        remote-kvm-host:

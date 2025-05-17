@@ -6,9 +6,6 @@
   become_method: sudo
   become_user: root
 
-  vars_files:
-  - ../vars/cloud-images.yml
-
   vars:
     user_machine_variants: []
     user_machine_images: []
