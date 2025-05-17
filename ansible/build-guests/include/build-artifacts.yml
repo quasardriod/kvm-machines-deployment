@@ -30,7 +30,7 @@
 
 - name: artifacts | Get all generated artifacts
   ansible.builtin.set_fact:
-    artifacts_list: "{{ lookup('fileglob', build_artifacts_dir) }}"
+    artifacts_list: "{{ lookup('fileglob', build_artifacts_dir + '/*') }}"
 
 - name: artifacts | Show generated artifacts
   ansible.builtin.debug:
