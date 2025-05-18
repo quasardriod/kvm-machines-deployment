@@ -2,11 +2,9 @@
 
 # set -eo pipefail
 source scripts/constant.sh
-build_artifacts_dir=/tmp/build-artifacts
 
-# Following artifacts are created by the ansible playbook
-# ansible-inventory of new created machines
-inventory_artifact=$build_artifacts_dir/ansible-inventory
+# Artifacts location on ansible host
+deployer_artifacts_dir=/tmp/artifacts/local
 
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
@@ -47,8 +45,19 @@ function prepare_kvm_host(){
     fi
 }
 
+# function read_artifacts(){
+#     # Read the artifacts pulled from KVM host
+# }
+
 function update_guest_os(){
     configure_pb="ansible/configure-guests/pb-configure-guest.yml"
+    inventory_file=$(yq .inventory_artifact inventory/group_vars/all.yml)
+    inventory_artifact=$deployer_artifacts_dir/$inventory_file
+
+    if [ ! -f $inventory_artifact ]; then
+        error "\nERROR: $inventory_artifact not found\n"
+        exit 1
+    fi
 
     info "\nUpdate OS of guest machines from $inventory_artifact\n"
     info_y "------------------------------------------------\n"
@@ -59,7 +68,7 @@ function update_guest_os(){
     if [[ ${update_os,,} == "y" ]] || [[ ${update_os,,} == "yes" ]];then
         ansible-playbook -i $inventory_artifact $configure_pb
     else
-        info_y "\nSkipping OS update...\n" && exit 0
+        info_y "\nSkipping OS update...\n"
     fi
 }
 
@@ -103,7 +112,7 @@ function guests_lcm(){
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
+        -e @$job_inputs_file -e "remote_artifacts_dir=$remote_artifacts_dir" \
         -e "inventory_artifact=$inventory_artifact" -e operation=${operations[$operation],,}
     fi
 }
@@ -112,11 +121,10 @@ function main(){
     set_virsh_connection
     generate_kvm_host_inventory
 
-    info_y "\nCleaning up $build_artifacts_dir\n"
-    [ -d $build_artifacts_dir ] && rm -rf $build_artifacts_dir
+    [ ! -d $deployer_artifacts_dir ] && mkdir -p $deployer_artifacts_dir
 
-    info_y "Build artifacts will be stored in: $build_artifacts_dir\n"
-    mkdir -p $build_artifacts_dir
+    info_y "Build artifacts on Ansible Controller: $deployer_artifacts_dir\n"
+    info_y "Build artifacts on KVM host: $(yq .kvm_artifacts_dir inventory/group_vars/all.yml)\n"
 
     build_pb="ansible/build-guests/pb-build-guest.yml"
    
@@ -130,9 +138,10 @@ function main(){
             error "\nERROR: $local_kvm_host_inventory not found\n"
             exit 1
         fi
+
+        # Call playbook to start building machines
         ansible-playbook -i $local_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
-        -e "inventory_artifact=$inventory_artifact"
+        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir"
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
@@ -160,9 +169,8 @@ function main(){
         fi
 
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
-        -e "inventory_artifact=$inventory_artifact"
-        
+        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir"
+
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
             exit 1

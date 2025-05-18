@@ -83,7 +83,7 @@
     - name: lcm | Take snapshot of VM
       ansible.builtin.shell: |
         virsh snapshot-create-as --domain {{ item }} \
-        --name {{ new_snapshots|select('search', item)|first }}-{{ snapshot_appendix }} \
+        --name {{ new_snapshots|select('search', item)|first }} \
         --description "Snapshot of {{ item }} after build"
       loop: "{{ kvm_guest_machines|map(attribute='name')|list }}"
       register: snapshot_result

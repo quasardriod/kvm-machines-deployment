@@ -1,8 +1,8 @@
 ---
 
-- name: artifacts | Create {{ build_artifacts_dir }} directory
+- name: artifacts | Create {{ kvm_artifacts_dir }} directory
   ansible.builtin.file:
-    path: "{{ build_artifacts_dir }}"
+    path: "{{ kvm_artifacts_dir }}"
     state: directory
     mode: '0755'
 
@@ -12,28 +12,32 @@
   - name: inventory artifacts | Generate ansible inventory from new created machines
     ansible.builtin.template:
       src: "{{ playbook_dir }}/templates/ansible-inventory.j2"
-      dest: "{{ inventory_artifact }}"
-      mode: 644
+      dest: "{{ kvm_artifacts_dir }}/{{ inventory_artifact }}"
+      mode: '0644'
     vars:
       machines: "{{ created_machine_properties }}"
 
   - name: inventory artifacts | Show generated ansible inventory
     ansible.builtin.debug:
-      msg: "Generated Ansible inventory file is {{ inventory_artifact }}"
+      msg: "Generated Ansible inventory file is {{ kvm_artifacts_dir }}/{{ inventory_artifact }}"
 
-  - name: inventory artifacts | Pull artifacts from on ansible controller in {{ build_artifacts_dir }}
+  - name: inventory artifacts | Pull artifacts from on ansible controller in {{ deployer_artifacts_dir }}
     ansible.builtin.fetch:
-      src: "{{ inventory_artifact }}"
-      dest: "{{ build_artifacts_dir }}/"
+      src: "{{ kvm_artifacts_dir }}/{{ item }}"
+      dest: "{{ deployer_artifacts_dir }}/"
       flat: yes
       fail_on_missing: yes
+    with_items:
+    - "{{ inventory_artifact }}"
+
+# Add artifacts related to machine life cycle management
 
 - name: artifacts | Get all generated artifacts
   ansible.builtin.set_fact:
-    artifacts_list: "{{ lookup('fileglob', build_artifacts_dir + '/*') }}"
+    artifacts_list: "{{ lookup('fileglob', kvm_artifacts_dir + '/*') }}"
 
 - name: artifacts | Show generated artifacts
   ansible.builtin.debug:
     msg:
-    - "Generated artifacts are in {{ build_artifacts_dir }} on ansible controller:"
+    - "Generated artifacts are in {{ kvm_artifacts_dir }} on KVM host:"
     - "{{ artifacts_list|split(',') }}"

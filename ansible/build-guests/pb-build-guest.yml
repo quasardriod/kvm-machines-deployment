@@ -11,6 +11,12 @@
     user_machine_images: []
     created_machine_properties: []
 
+  pre_tasks:
+  - name: kvm-guest | Cleaned up artifacts directory {{ kvm_artifacts_dir }}
+    ansible.builtin.file:
+      path: "{{ kvm_artifacts_dir }}"
+      state: absent
+
   tasks:
   - name: kvm-guest | Ensure libvirtd is running
     ansible.builtin.systemd:

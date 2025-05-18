@@ -33,3 +33,9 @@ public_image_store:
 snapshot_appendix: "{{ lookup('pipe', 'date +%Y%m%d_%H%M') }}"
 supported_operations:
 - snapshot
+
+# Artifacts related variables
+# Directory to store artifacts on KVM host
+kvm_artifacts_dir: "/tmp/artifacts/kvm"
+# Ansible inventory file create for new built machines 
+inventory_artifact: "inventory.yml"
