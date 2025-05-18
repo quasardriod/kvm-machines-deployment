@@ -85,35 +85,45 @@ function guests_lcm(){
         [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
     fi
 
-    info_y "\nINFO: Select operation to perform on KVM guests\n"
-    info_y "------------------------------------------------\n"
-    for index in "${!operations[@]}"; do
-        echo -e "$index: ${operations[$index]}"
-    done
-    echo -e "\nHit Enter to skip operations\n"
-    read -p "Select operation index: " operation
-
-    # Check if the input is a valid number and within the range of operations
     if [ -z $operation ];then
-        info "\nINFO: No operation selected. Skipping...\n"
-        exit 1
-    elif [[ ! "$operation" =~ ^[0-9]+$ ]] || [[ $operation -lt 0 ]] || [[ $operation -ge ${#operations[@]} ]]; then
-        error "\nERROR: Invalid operation index. Please select a valid index.\n"
-        exit 1
-    fi
+        info_y "\nINFO: Select operation to perform on KVM guests\n"
+        info_y "------------------------------------------------\n"
+        for index in "${!operations[@]}"; do
+            echo -e "$index: ${operations[$index]}"
+        done
+        echo -e "\nHit Enter to skip operations\n"
+        read -p "Select operation index: " operation_choice
 
-    success "\nINFO: Selected operation: ${operations[$operation]}\n"
+        # Check if the input is a valid number and within the range of operations
+        if [ -z $operation_choice ];then
+            info "\nINFO: No operation selected. Skipping...\n"
+            exit 1
+        elif [[ ! "$operation_choice" =~ ^[0-9]+$ ]] || [[ $operation_choice -lt 0 ]] || [[ $operation_choice -ge ${#operations[@]} ]]; then
+            error "\nERROR: Invalid operation index. Please select a valid index.\n"
+            exit 1
+        fi
+        operation=${operations[$operation_choice]}
+    else
+        info_y "\nINFO: User provided operation: $operation\n"
+        # Ensure the given operation exists in the operations array
+        if [[ ! " ${operations[@]} " =~ " ${operation} " ]]; then
+            error "\nERROR: Selected operation is not valid. Please select a valid operation.\n"
+            exit 1
+        fi
+    fi
+    
+    success "\nINFO: Performing operation: ${operation}\n"
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
         ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
-        -e @$job_inputs_file -e operation=${operations[$operation],,} \
+        -e @$job_inputs_file -e operation=${operation,,} \
         -b
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
         -e @$job_inputs_file -e "remote_artifacts_dir=$remote_artifacts_dir" \
-        -e "inventory_artifact=$inventory_artifact" -e operation=${operations[$operation],,}
+        -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,}
     fi
 }
 
@@ -153,13 +163,9 @@ function main(){
             update_guest_os
         fi
 
-        # Prompt for life-cycle management operations on new created machines
-        read -p "Do you want to perform life-cycle management operations on new created machines? [Y/n]: " lcm_input
-        if [[ ${lcm_input,,} == "y" ]] || [[ ${lcm_input,,} == "yes" ]] || [[ -z $lcm_input ]];then
-            guests_lcm
-        else
-            info_y "\nSkipping operation...\n"
-        fi
+        # Take snapshot of the new created machines
+        operation="Snapshot"
+        guests_lcm
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
@@ -178,16 +184,11 @@ function main(){
 
         info "\nINFO: Guest OS update is not supported on remote KVM host\n" 
         
-        # Prompt for life-cycle management operations on new created machines
-        read -p "Do you want to perform life-cycle management operations on new created machines? [Y/n]: " lcm_input
-        if [[ ${lcm_input,,} == "y" ]] || [[ ${lcm_input,,} == "yes" ]] || [[ -z $lcm_input ]];then
-            guests_lcm
-        else
-            info_y "\nSkipping operation...\n"
-        fi
+       # Take snapshot of the new created machines
+        operation="Snapshot"
+        guests_lcm
 
     fi
-
 }
 
 function kvm_host_capabilities(){
@@ -198,7 +199,7 @@ function kvm_host_capabilities(){
     info_y "------------------------------------------------\n"
     info "\nAvailable images:\n"
     info "-----------------\n"
-    yq eval '.cloud_images' ansible/vars/cloud-images.yml
+    yq eval '.cloud_images' inventory/group_vars/all.yml
     
     info "\nBuild Image are/will be stored in:\n"
     info "---------------------\n"

@@ -11,6 +11,7 @@
   changed_when: false
   ignore_errors: true
 
+# Improve this task
 - name: build | Remove if {{ vm.name }} exists
   ansible.builtin.shell: |
     # Delete VM snapshot

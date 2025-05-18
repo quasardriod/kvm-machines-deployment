@@ -21,14 +21,35 @@
     ansible.builtin.debug:
       msg: "Generated Ansible inventory file is {{ kvm_artifacts_dir }}/{{ inventory_artifact }}"
 
-  - name: inventory artifacts | Pull artifacts from on ansible controller in {{ deployer_artifacts_dir }}
+  - name: inventory artifacts | Pull artifacts on ansible controller in {{ deployer_artifacts_dir }}
     ansible.builtin.fetch:
-      src: "{{ kvm_artifacts_dir }}/{{ item }}"
+      src: "{{ kvm_artifacts_dir }}/{{ inventory_artifact }}"
       dest: "{{ deployer_artifacts_dir }}/"
       flat: yes
       fail_on_missing: yes
-    with_items:
-    - "{{ inventory_artifact }}"
+      mode: '0644'
+    when: inventory_hostname != "localhost"
+
+  - name: inventory artifacts | Copy artifacts on ansible controller in {{ deployer_artifacts_dir }}
+    ansible.builtin.copy:
+      src: "{{ kvm_artifacts_dir }}/{{ inventory_artifact }}"
+      dest: "{{ deployer_artifacts_dir }}/"
+      mode: '0644'
+    delegate_to: localhost
+    when: inventory_hostname == "localhost"
+
+  - name: inventory artifacts | Get that stat of fetched inventory artifact
+    ansible.builtin.stat:
+      path: "{{ deployer_artifacts_dir }}/{{ inventory_artifact }}"
+    register: inventory_stat
+    delegate_to: localhost
+    run_once: true
+
+  - name: inventory artifacts | Run assert for fetched inventory artifact
+    ansible.builtin.assert:
+      that:
+      - inventory_stat.stat.exists == true
+      - inventory_stat.stat.mode == '0644'
 
 # Add artifacts related to machine life cycle management
 
