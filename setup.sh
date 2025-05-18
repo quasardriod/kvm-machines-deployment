@@ -10,6 +10,7 @@ inventory_artifact=$build_artifacts_dir/ansible-inventory
 
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
+local_kvm_host_inventory="inventory/kvm-local.yml"
 
 function pre_checks(){
     # Check if the ansible-playbook command is available
@@ -62,46 +63,54 @@ function update_guest_os(){
     fi
 }
 
-# Generate ansible inventory for remote KVM host on the fly
-function generate_ansible_inventory() {
-    # https://www.bashsupport.com/bash/variables/bash_rematch/
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh://([^@]+)@([^/]+)/system$ ]]; then
+function guests_lcm(){
+    declare -a operations=("Snapshot" "Revert" "Delete" "Start" "Stop" "Pause" "Unpause" "Shutdown")
+    lcm_pb="ansible/guests-lcm/lifecycle-management.yml"
 
-    info_y "\nINFO: Generating ansible inventory for remote KVM host: $LIBVIRT_DEFAULT_URI\n"
-        remote_user="${BASH_REMATCH[1]}"
-        remote_host="${BASH_REMATCH[2]}"
+    if [ -z $job_inputs_file ]; then
+        set_virsh_connection
+        generate_kvm_host_inventory
 
-        cat <<EOF > $remote_kvm_host_inventory
-all:
-  hosts:
-    remote-kvm-host:
-      ansible_host: $remote_host
-      ansible_user: $remote_user
-      ansible_connection: ssh
-  children:
-    kvm_hosts:
-      hosts:
-        remote-kvm-host:
-EOF
+        [[ -z $1 ]] && echo "Please provide the job-inputs.yml file" && exit 1   
+        job_inputs_file=$1
+        [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
+    fi
 
-        success "\nAnsible inventory generated: $remote_kvm_host_inventory\n"
-    else
-        error "\nError: LIBVIRT_DEFAULT_URI is not a valid remote KVM URI.\n"
+    info_y "\nINFO: Select operation to perform on KVM guests\n"
+    info_y "------------------------------------------------\n"
+    for index in "${!operations[@]}"; do
+        echo -e "$index: ${operations[$index]}"
+    done
+    echo -e "\nHit Enter to skip operations\n"
+    read -p "Select operation index: " operation
+
+    # Check if the input is a valid number and within the range of operations
+    if [ -z $operation ];then
+        info "\nINFO: No operation selected. Skipping...\n"
+        exit 1
+    elif [[ ! "$operation" =~ ^[0-9]+$ ]] || [[ $operation -lt 0 ]] || [[ $operation -ge ${#operations[@]} ]]; then
+        error "\nERROR: Invalid operation index. Please select a valid index.\n"
         exit 1
     fi
 
-    # Test ansible connectivity to remote KVM host
-    ansible all -i $remote_kvm_host_inventory -m ping
-    if [ $? -ne 0 ]; then
-        error "\nError: Ansible connectivity to remote KVM host failed.\n"
-        exit 1
+    success "\nINFO: Selected operation: ${operations[$operation]}\n"
+
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
+        -e @$job_inputs_file -e operation=${operations[$operation],,} \
+        -b
     fi
-    success "\nAnsible connectivity to remote KVM host successful.\n"
+    
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+        ansible-playbook -i $remote_kvm_host_inventory $build_pb \
+        -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
+        -e "inventory_artifact=$inventory_artifact" -e operation=${operations[$operation],,}
+    fi
 }
 
-# Call the function to generate the inventory
 function main(){
     set_virsh_connection
+    generate_kvm_host_inventory
 
     info_y "\nCleaning up $build_artifacts_dir\n"
     [ -d $build_artifacts_dir ] && rm -rf $build_artifacts_dir
@@ -116,27 +125,61 @@ function main(){
     [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        kvm_host_inventory=inventory/kvm-local
-        ansible-playbook -i $kvm_host_inventory $build_pb \
+
+        if [ ! -f $local_kvm_host_inventory ]; then
+            error "\nERROR: $local_kvm_host_inventory not found\n"
+            exit 1
+        fi
+        ansible-playbook -i $local_kvm_host_inventory $build_pb \
         -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
         -e "inventory_artifact=$inventory_artifact"
+
+        if [ $? -ne 0 ]; then
+            error "\nERROR: Failed to build machines\n"
+            exit 1
+        fi
+
+        # For now guest OS update supported only when VMs built on local KVM host
+        if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+            update_guest_os
+        fi
+
+        # Prompt for life-cycle management operations on new created machines
+        read -p "Do you want to perform life-cycle management operations on new created machines? [Y/n]: " lcm_input
+        if [[ ${lcm_input,,} == "y" ]] || [[ ${lcm_input,,} == "yes" ]] || [[ -z $lcm_input ]];then
+            guests_lcm
+        else
+            info_y "\nSkipping operation...\n"
+        fi
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        generate_ansible_inventory
+        if [ ! -f $remote_kvm_host_inventory ]; then
+            error "\nERROR: $remote_kvm_host_inventory not found\n"
+            exit 1
+        fi
+
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
         -e @$job_inputs_file -e "build_artifacts_dir=$build_artifacts_dir" \
         -e "inventory_artifact=$inventory_artifact"
+        
+        if [ $? -ne 0 ]; then
+            error "\nERROR: Failed to build machines\n"
+            exit 1
+        fi
+
+        info "\nINFO: Guest OS update is not supported on remote KVM host\n" 
+        
+        # Prompt for life-cycle management operations on new created machines
+        read -p "Do you want to perform life-cycle management operations on new created machines? [Y/n]: " lcm_input
+        if [[ ${lcm_input,,} == "y" ]] || [[ ${lcm_input,,} == "yes" ]] || [[ -z $lcm_input ]];then
+            guests_lcm
+        else
+            info_y "\nSkipping operation...\n"
+        fi
+
     fi
 
-    # For now guest OS update supported only when VMs built on local KVM host
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        update_guest_os
-    fi
-
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        info "\nINFO: Guest OS update is not supported on remote KVM host\n"
-    fi  
 }
 
 function kvm_host_capabilities(){
@@ -185,12 +228,13 @@ usage(){
     echo " -p                    Prepare KVM Host"
     echo " -m <job-inputs.yml>   Build and Configure KVM guests, required: [job-inputs.yml]"
     echo " -i                    List available images and properties"
+    echo " -l <job-inputs.yml>   Life-cycle Management of KVM guests, required: [job-inputs.yml]"
 	echo " -h                    help, this message"
 	echo
 	exit 0
 }
 
-while getopts 'ihpm:' opt; do
+while getopts 'ihpl:m:' opt; do
     case $opt in
         m) 
             if [ -z "$OPTARG" ]; then
@@ -203,6 +247,14 @@ while getopts 'ihpm:' opt; do
         h) usage;;
         p) prepare_kvm_host;;
         i) kvm_host_capabilities;;
+        l) 
+            if [ -z "$OPTARG" ]; then
+                echo "Error: -m requires an argument."
+                usage
+                exit 1
+            fi
+            guests_lcm "$OPTARG"
+            ;;
         \?|*) 
             echo "Invalid Option: -$opt"
             usage

@@ -13,7 +13,14 @@
 
 - name: build | Remove if {{ vm.name }} exists
   ansible.builtin.shell: |
-    virsh destroy {{ vm.name }}
+    # Delete VM snapshot
+    snapshot_list=$(virsh snapshot-list --domain {{ vm.name }} |awk '{print $1}'|egrep -v "^Name|^-" | xargs)
+
+    for snapshot in $snapshot_list; do
+      virsh snapshot-delete --domain {{ vm.name }} --snapshotname $snapshot
+    done
+    # Delete VM
+    virsh destroy {{ vm.name }} --remove-logs
     sleep 10
     virsh undefine {{ vm.name }} --remove-all-storage
   register: vm_destroy

@@ -28,3 +28,8 @@ public_image_store:
 - download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
   variant:
   - "rocky9"
+
+# Machine life cycle management related variables
+snapshot_appendix: "{{ lookup('pipe', 'date +%Y%m%d_%H%M') }}"
+supported_operations:
+- snapshot

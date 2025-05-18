@@ -1,0 +1,104 @@
+---
+# snapshot_appendix is coming from
+- hosts: all
+  gather_facts: true
+
+  vars:
+    installed_guests: []
+    new_snapshots: []
+
+  pre_tasks:
+  - name: lcm | Ensure operation is defined
+    ansible.builtin.assert:
+      that:
+      - operation is defined and operation != ""
+      - operation in supported_operations
+
+  tasks:
+  - name: lcm | Ensure libvirtd is running
+    ansible.builtin.systemd:
+      name: libvirtd
+      state: started
+      enabled: true
+    when: ansible_os_family == "RedHat"
+
+  - name: lcm | Read guest build inputs
+    ansible.builtin.debug:
+      var: kvm_guest_machines
+
+  - name: lcm | Get the VM already exists on KVM host
+    ansible.builtin.shell: |
+      virsh list --all|awk '/^\s[0-9]/{print $2}'
+    register: _installed_vms
+
+  - name: lcm | Show available VMs on KVM host
+    ansible.builtin.debug:
+      var: _installed_vms.stdout_lines
+
+  - name: lcm | Ensure VMs listed in 'kvm_guest_machines' are exists
+    ansible.builtin.assert:
+      that:
+      - item.name in _installed_vms.stdout_lines
+    loop: "{{ kvm_guest_machines }}"
+    loop_control:
+      label: "{{ item.name }}"
+
+  - name: lcm | Block to take snapshot of VMs
+    block:
+
+    - name: lcm | Add snapshots to be created in new_snapshots
+      ansible.builtin.set_fact:
+        new_snapshots: "{{ new_snapshots + [item.name + '-' + snapshot_appendix] }}"
+      loop: "{{ kvm_guest_machines }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: lcm | Show snapshots to be created
+      ansible.builtin.debug:
+        var: new_snapshots
+
+    - name: lcm | Check if snapshot already exists
+      ansible.builtin.shell: |
+        exists_snapshots=$(
+          for v in {{ vms }}; do
+            virsh snapshot-list --domain $v |awk '{print $1}'\
+            |egrep -v "^Name|^-" | xargs;
+        done)
+        echo $exists_snapshots|tr ' ' '\n'|sort -u
+      register: existing_snapshot_list
+      vars:
+        vms: "{{ kvm_guest_machines|map(attribute='name')|list| join(' ') }}"
+      changed_when: false
+
+    - name: lcm | Show snapshot list
+      ansible.builtin.debug:
+        var: existing_snapshot_list.stdout_lines
+
+    - name: lcm | Ensure to be created snapshot does not exist
+      ansible.builtin.assert:
+        that:
+        - item not in new_snapshots
+      loop: "{{ existing_snapshot_list.stdout_lines }}"
+
+    - name: lcm | Take snapshot of VM
+      ansible.builtin.shell: |
+        virsh snapshot-create-as --domain {{ item }} \
+        --name {{ new_snapshots|select('search', item)|first }}-{{ snapshot_appendix }} \
+        --description "Snapshot of {{ item }} after build"
+      loop: "{{ kvm_guest_machines|map(attribute='name')|list }}"
+      register: snapshot_result
+
+    - name: lcm | Get snapshot of the machines
+      ansible.builtin.shell: |
+        for v in {{ vms }}; do
+          virsh snapshot-list $v
+        done
+      register: get_snapshot
+      vars:
+        vms: "{{ kvm_guest_machines|map(attribute='name')|list| join(' ') }}"
+
+    - name: lcm | Show snapshot of the machines
+      ansible.builtin.debug:
+        var: get_snapshot.stdout_lines
+    when:
+    - operation == 'snapshot'

@@ -102,3 +102,68 @@ function set_virsh_connection(){
     info_y "INFO: Using virsh command: $VIRSH_CMD\n"
 }
 
+# Generate ansible inventory for remote KVM host on the fly
+function generate_kvm_host_inventory(){
+    # https://www.bashsupport.com/bash/variables/bash_rematch/
+
+    # Generate inventory from remote QEMU connection LIBVIRT_DEFAULT_URI
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh://([^@]+)@([^/]+)/system$ ]]; then
+
+        info_y "\nINFO: Generating ansible inventory for remote KVM host: $LIBVIRT_DEFAULT_URI\n"
+        remote_user="${BASH_REMATCH[1]}"
+        remote_host="${BASH_REMATCH[2]}"
+
+cat <<EOF > $remote_kvm_host_inventory
+all:
+  hosts:
+    remote-kvm-host:
+      ansible_host: $remote_host
+      ansible_user: $remote_user
+      ansible_connection: ssh
+  children:
+    kvm_hosts:
+      hosts:
+        remote-kvm-host
+EOF
+
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to create Ansible inventory file at $remote_kvm_host_inventory."
+            exit 1
+        fi      
+
+        ansible all -i $remote_kvm_host_inventory -m ping
+        if [ $? -ne 0 ]; then
+            error "\nError: Ansible connectivity to remote KVM host failed.\n"
+            exit 1
+        fi
+        success "\nAnsible inventory generated: $remote_kvm_host_inventory\n"
+    
+    # Generate inventory from local QEMU connection LIBVIRT_DEFAULT_URI
+    elif [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        
+        info_y "\nINFO: Generating ansible inventory for local KVM host: $LIBVIRT_DEFAULT_URI\n"
+
+cat <<EOF > "$local_kvm_host_inventory"
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_user: $USER
+EOF
+
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to create Ansible inventory file at $local_kvm_host_inventory."
+            exit 1
+        fi      
+
+        ansible all -i $local_kvm_host_inventory -m ping
+        if [ $? -ne 0 ]; then
+            error "\nError: Ansible connectivity to remote KVM host failed.\n"
+            exit 1
+        fi
+        success "\nAnsible inventory generated: $local_kvm_host_inventory\n"
+    else
+        error "\nError: LIBVIRT_DEFAULT_URI is not a valid remote KVM URI.\n"
+        exit 1
+    fi
+}
