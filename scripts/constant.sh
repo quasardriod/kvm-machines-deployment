@@ -62,7 +62,7 @@ function set_virsh_connection(){
     fi
 
     if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
-        error "\nERROR: qemu connection is not set\n"
+        error "\nERROR: 'LIBVIRT_DEFAULT_URI' is not exported for QEMU connection.\n"
         error "Visit 'QEMU Connection' in 'README.md' for more information\n"
         exit 1
     fi
