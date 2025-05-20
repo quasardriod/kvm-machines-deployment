@@ -1,0 +1,44 @@
+- name: lcm | Check if machines have snapshots
+  ansible.builtin.shell: |
+    exists_snapshots=$(
+      for v in {{ vms }}; do
+        virsh snapshot-list --domain $v |awk '{print $1}'\
+        |egrep -v "^Name|^-" | xargs;
+    done)
+    echo $exists_snapshots|tr ' ' '\n'|sort -u
+  register: existing_snapshot_list
+  vars:
+    vms: "{{ kvm_guest_machines|map(attribute='name')|list| join(' ') }}"
+  changed_when: false
+
+- name: lcm | Show snapshot list
+  ansible.builtin.debug:
+    var: existing_snapshot_list.stdout_lines
+
+- name: lcm | Delete snapshots
+  ansible.builtin.shell: |
+    snapshot_list=$(virsh snapshot-list --domain {{ vm }} |awk '{print $1}'|egrep -v "^Name|^-" | xargs)
+    if [ -z "$snapshot_list" ]; then
+      echo "No snapshot found for {{ vm }}"
+    else
+      for snapshot in $snapshot_list; do
+        virsh snapshot-delete --domain {{ vm }} --snapshotname $snapshot
+      done
+    fi
+  register: delete_snapshot
+  loop: "{{ kvm_guest_machines|map(attribute='name')|list }}"
+  loop_control:
+    loop_var: vm
+  when:
+  - existing_snapshot_list.stdout_lines | length > 0
+  - existing_snapshot_list.stdout_lines is search(vm)
+
+- name: lcm | Delete machines with storage
+  ansible.builtin.shell: |
+    virsh destroy {{ vm }} --remove-logs
+    sleep 10
+    virsh undefine {{ vm }} --remove-all-storage
+  register: delete_machine
+  loop: "{{ kvm_guest_machines|map(attribute='name')|list }}"
+  loop_control:
+    loop_var: vm

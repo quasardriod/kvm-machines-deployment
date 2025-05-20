@@ -33,6 +33,7 @@ public_image_store:
 snapshot_appendix: "{{ lookup('pipe', 'date +%Y%m%d_%H%M') }}"
 supported_operations:
 - snapshot
+- delete
 
 # Artifacts related variables
 # Directory to store artifacts on KVM host
