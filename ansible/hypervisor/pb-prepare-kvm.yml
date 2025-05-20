@@ -32,8 +32,6 @@
 
   - name: prepare-kvm | Get  list of all variants available on the host
     ansible.builtin.shell: virt-install --os-variant list
-    environment:
-      LIBVIRT_DEFAULT_URI: "{{ LIBVIRT_DEFAULT_URI }}"
     register: virt_install_list_variants
     changed_when: false
 

@@ -35,13 +35,12 @@ function prepare_kvm_host(){
     set_virsh_connection
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        ansible-playbook -i inventory/kvm-local ansible/hypervisor/pb-prepare-kvm.yml -b 
+        ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml -b 
     fi
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         remote_kvm
-        ansible-playbook -i inventory/kvm-remote ansible/hypervisor/pb-prepare-kvm.yml \
-        -e LIBVIRT_DEFAULT_URI=$LIBVIRT_DEFAULT_URI
+        ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml
     fi
 }
 
