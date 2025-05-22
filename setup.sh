@@ -117,12 +117,16 @@ function guests_lcm(){
         ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
         -e @$job_inputs_file -e operation=${operation,,} \
         -b
+        
+        [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
         -e @$job_inputs_file -e "remote_artifacts_dir=$remote_artifacts_dir" \
         -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,}
+
+        [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
     fi
 }
 
@@ -161,6 +165,11 @@ function main(){
         if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
             update_guest_os
         fi
+
+        # Shutdown the machines before taking snapshot
+        info "\nINFO: Shutdown the machines before taking snapshot\n"
+        operation="Shutdown"
+        guests_lcm
 
         # Take snapshot of the new created machines
         operation="Snapshot"

@@ -1,0 +1,21 @@
+- name: shutdown | Shutdown machines
+  ansible.builtin.shell: |
+    virsh shutdown {{ vm }}
+  register: shutdown_machine
+  loop: "{{ kvm_guest_machines|map(attribute='name')|list }}"
+  loop_control:
+    loop_var: vm
+
+- name: shutdown | Wait for machines to be shut down
+  ansible.builtin.shell: |
+    for vm in {{ vms }}; do
+      until [[ "$(virsh dominfo "$vm" | grep ^State | cut -d':' -f2 | xargs)" == "shut off" ]]; do
+        echo "Waiting for $vm to shut down..."
+        sleep 5
+      done
+      echo "$vm is now shut off."
+    done
+  register: wait_shutdown
+  changed_when: false
+  vars:
+    vms: "{{ kvm_guest_machines | map(attribute='name') | join(' ') }}"

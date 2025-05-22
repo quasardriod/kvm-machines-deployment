@@ -8,6 +8,7 @@
     new_snapshots: []
 
   pre_tasks:
+  # supported_operations is coming from inventory/group_vars/all.yml
   - name: lcm | Ensure operation is defined
     ansible.builtin.assert:
       that:
@@ -50,3 +51,11 @@
   - name: lcm | Call include/delete.yml to delete machines
     include_tasks: include/delete.yml
     when: operation == 'delete'
+
+  - name: lcm | Call include/shutdown.yml to shutdown machines
+    include_tasks: include/shutdown.yml
+    when: operation == 'shutdown'
+
+  - name: lcm | Call include/start.yml to start machines
+    include_tasks: include/start.yml
+    when: operation == 'start'
