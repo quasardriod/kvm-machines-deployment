@@ -167,3 +167,65 @@ EOF
         exit 1
     fi
 }
+
+function user_consent(){
+    IMAGES_STORE=$(yq .IMAGES_STORE inventory/group_vars/all.yml)
+    
+    info "\nAlert: The Guest images images will be created in $IMAGES_STORE\n"
+    info "------------------------------------------------\n"
+    info_y "INFO: To override the default location of images, edit inventory/group_vars/all.yml file \n"
+
+    read -p "Do you wish to override the default location? [y/N]: " consent
+    if [[ ${consent,,} == "y" ]] || [[ ${consent,,} == "yes" ]];then
+        info_y "Aborting deployment...\n"
+        exit 2
+    fi
+
+    # info_y "INFO: If you wish to store the images in a different location, please provide an yaml file to override the default location.\n"
+    # info_y "INFO: The yaml file should contain the following:\n"
+    # info_y "------------------------------------------------\n"
+    # info_y "IMAGES_STORE: <path to the directory>\n"
+    # info_y "------------------------------------------------\n"
+    
+    # read -p "Do you provide a yaml file to override the default location? [y/N]: " consent
+    # if [[ ${consent,,} == "y" ]] || [[ ${consent,,} == "yes" ]];then
+    #     info_y "\nINFO: Please provide the yaml file:\n"
+    #     read -p "File: " override_default_vars_by_yaml_file
+        
+    #     info "\nINFO: User provided yaml file is $override_default_vars_by_yaml_file\n"
+        
+    #     if [ ! -f $override_default_vars_by_yaml_file ]; then
+    #         error "\nERROR: File $override_default_vars_by_yaml_file not found\n"
+    #         exit 1
+    #     fi
+    #     IMAGES_STORE=$(yq .IMAGES_STORE $override_default_vars_by_yaml_file)
+    #     if [[ -z $IMAGES_STORE ]]; then
+    #         error "\nERROR: No IMAGES_STORE found in $override_default_vars_by_yaml_file file\n"
+    #         exit 1
+    #     fi
+    #     info_y "\nINFO: The images will be created in $IMAGES_STORE\n"
+    # else
+    #     info_y "\nINFO: The images will be created in $IMAGES_STORE\n"
+    # fi
+}
+
+function load_user_vars(){
+    # Load user variables from the yaml file
+    if [ -f $override_default_vars_by_yaml_file ]; then
+        info_y "\nINFO: Loading user variables from $override_default_vars_by_yaml_file\n"
+        if [ $(wc -l $override_default_vars_by_yaml_file | awk '{print $1}') -gt 1 ]; then
+            error "\nERROR: The yaml file contains more than one line, please check the file\n"
+            error "\nERROR: Only 'IMAGES_STORE' is supported\n"
+            exit 1
+        fi
+        default_vars_override_option="-e @${override_default_vars_by_yaml_file}"
+        info_y "\nAlert: '$default_vars_override_option' will be passed in ansible playbook commands\n"
+    fi
+}
+
+function run_user_consent(){
+    user_consent
+    if [[ ! -z $override_default_vars_by_yaml_file ]] || [[ $override_default_vars_by_yaml_file != "" ]]; then
+        load_user_vars
+   fi    
+}

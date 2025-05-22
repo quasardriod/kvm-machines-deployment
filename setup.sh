@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # set -eo pipefail
+# User provided yaml file to overwrite IMAGE_STORE location
+default_vars_override_option=""
 source scripts/constant.sh
 
 # Artifacts location on ansible host
@@ -35,12 +37,14 @@ function prepare_kvm_host(){
     set_virsh_connection
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml -b 
+        ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
+        $default_vars_override_option -b 
     fi
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         remote_kvm
-        ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml
+        ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
+        $default_vars_override_option -b
     fi
 }
 
@@ -65,7 +69,12 @@ function update_guest_os(){
     
     read -p "Continue with ansible-playbook to update guest machines? [y/N]: " update_os
     if [[ ${update_os,,} == "y" ]] || [[ ${update_os,,} == "yes" ]];then
-        ansible-playbook -i $inventory_artifact $configure_pb
+        ansible-playbook -i $inventory_artifact $configure_pb $default_vars_override_option
+        if [ $? -ne 0 ]; then
+            error "\nERROR: Failed to update guest machines\n"
+            exit 1
+        fi
+
     else
         info_y "\nSkipping OS update...\n"
     fi
@@ -84,6 +93,11 @@ function guests_lcm(){
         [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
     fi
 
+    info "\nINFO: Following VMs will be managed:\n"
+    info "------------------------------------------------\n"
+    yq eval '.kvm_guest_machines[]|.name' $job_inputs_file
+    info "\n------------------------------------------------\n"
+    
     if [ -z $operation ];then
         info_y "\nINFO: Select operation to perform on KVM guests\n"
         info_y "------------------------------------------------\n"
@@ -115,7 +129,7 @@ function guests_lcm(){
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
         ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
-        -e @$job_inputs_file -e operation=${operation,,} \
+        -e @$job_inputs_file -e operation=${operation,,} $default_vars_override_option \
         -b
         
         [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
@@ -124,13 +138,15 @@ function guests_lcm(){
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
         -e @$job_inputs_file -e "remote_artifacts_dir=$remote_artifacts_dir" \
-        -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,}
+        -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,} \
+        $default_vars_override_option
 
         [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
     fi
 }
 
 function main(){
+    user_consent
     set_virsh_connection
     generate_kvm_host_inventory
 
@@ -154,7 +170,8 @@ function main(){
 
         # Call playbook to start building machines
         ansible-playbook -i $local_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir"
+        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir" \
+        $default_vars_override_option
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
@@ -174,6 +191,10 @@ function main(){
         # Take snapshot of the new created machines
         operation="Snapshot"
         guests_lcm
+
+        # Start the machines after snapshot
+        operation="Start"
+        guests_lcm
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
@@ -183,19 +204,28 @@ function main(){
         fi
 
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir"
+        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir" \
+        $default_vars_override_option
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
             exit 1
         fi
 
-        info "\nINFO: Guest OS update is not supported on remote KVM host\n" 
+        info_y "\nAlert: Guest OS update is not supported on remote KVM host\n" 
         
-       # Take snapshot of the new created machines
+        # Shutdown the machines before taking snapshot
+        info "\nINFO: Shutdown the machines before taking snapshot\n"
+        operation="Shutdown"
+        guests_lcm
+
+        # Take snapshot of the new created machines
         operation="Snapshot"
         guests_lcm
 
+        # Start the machines after snapshot
+        operation="Start"
+        guests_lcm
     fi
 }
 

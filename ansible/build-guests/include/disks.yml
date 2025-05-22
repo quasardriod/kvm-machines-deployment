@@ -48,25 +48,17 @@
     state: absent
   when: disk_stat.stat.exists == true
 
-- name: disks | Copy {{ build_image }} to {{ disk_path }}
-  ansible.builtin.copy:
-    src: "{{ IMAGE_TEMPLATE_STORE }}/{{ build_image }}"
-    dest: "{{ disk_path }}"
-    remote_src: yes
-    force: yes
-    mode: '0644'
-    owner: root
-    group: root
+- name: disks | Set fact disk_size
+  ansible.builtin.set_fact:
+    disk_size: "{{ vm.disk_size if (vm.disk_size is defined and vm.disk_size != '') else 10 }}"
 
-- name: disks | Increase {{ disk_path }} size to {{ vm.disk_size }}
+- name: disks | Create empty {{ disk_path }}
   ansible.builtin.command: >
-    qemu-img resize {{ disk_path }} {{ vm.disk_size }}
-  args:
-    creates: "{{ disk_path }}"
-  register: resize_disk
-  changed_when: resize_disk.rc == 0
-  failed_when: resize_disk.rc != 0
-  when: vm.disk_size is defined and vm.disk_size != ""
+    qemu-img create -f qcow2 -o preallocation=metadata {{ disk_path }} {{ disk_size }}G
+
+- name: disks | Copy {{ build_image }} to {{ disk_path }} using virt-resize
+  ansible.builtin.command: >
+    virt-resize --expand /dev/sda1 {{ IMAGE_TEMPLATE_STORE }}/{{ build_image }} {{ disk_path }}
 
 - name: disks | Get {{ disk_path }} properties
   ansible.builtin.command: >
@@ -77,6 +69,16 @@
 - name: disks | Show {{ disk_path }} properties
   ansible.builtin.debug:
     var: disk_info.stdout_lines
+
+- name: disks | Get {{ disk_path }} Filesystem Expansion status
+  ansible.builtin.command: >
+    virt-filesystems --long -h -a {{ disk_path }} 
+  register: disk_fs
+  changed_when: false
+
+- name: disks | Show {{ disk_path }} Filesystem Expansion status
+  ansible.builtin.debug:
+    var: disk_fs.stdout_lines
 
 - name: disks | Call include/build.yml
   ansible.builtin.include_tasks: include/build.yml
