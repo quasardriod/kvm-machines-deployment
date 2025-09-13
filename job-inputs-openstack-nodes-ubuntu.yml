@@ -15,12 +15,34 @@ cloud_config:
         - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
 kvm_guest_machines:
-- name: ubuntu-test
+- name: ost-kolla
   variant: ubuntu22.04
   cloud_image: ""
-  vcpu: 4
-  ram: 4096
-  disk_size: 30
+  vcpu: 1
+  ram: 1024
+  disk_size: 10
+  nic: 1
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"
+- name: ost-ctrl
+  variant: ubuntu22.04
+  cloud_image: ""
+  vcpu: 1
+  ram: 1024
+  disk_size: 10
+  nic: 1
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"
+- name: ost-compute1
+  variant: ubuntu22.04
+  cloud_image: ""
+  vcpu: 1
+  ram: 1024
+  disk_size: 10
   nic: 1
   networks:
   - default

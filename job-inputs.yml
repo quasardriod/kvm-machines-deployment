@@ -15,20 +15,20 @@ cloud_config:
           - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
 kvm_guest_machines:
-# - name: k8s-master
-#   build_type: kubernetes
-#   node_role: master
-#   variant: centos-stream9
-#   cloud_image: ""
-#   vcpu: 4
-#   ram: 4096
-#   disk_size: 30
-#   nic: 1
-#   networks:
-#   - default
-#   cloud_user: "{{ cloud_config.cloud_user }}"
-#   user_data: "{{ cloud_config.user_data }}"
-- name: k8s-worker2
+- name: k8s-master
+  build_type: kubernetes
+  node_role: master
+  variant: centos-stream9
+  cloud_image: ""
+  vcpu: 4
+  ram: 4096
+  disk_size: 30
+  nic: 1
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"
+- name: k8s-worker
   build_type: kubernetes
   node_role: worker
   variant: centos-stream9
