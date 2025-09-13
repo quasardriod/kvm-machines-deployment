@@ -5,8 +5,14 @@
   become_user: root
 
   tasks:
-  - name: Update OS
+  - name: Update OS of Red Hat based systems
     ansible.builtin.dnf:
       name: "*"
       state: latest
     when: ansible_os_family == "RedHat"
+
+  - name: Update OS of Ubuntu/Debian based systems
+    ansible.builtin.apt:
+      update_cache: yes
+      upgrade: dist
+    when: ansible_os_family == "Debian"

@@ -38,7 +38,7 @@
   - name: prepare-kvm | Ensure 'VARIANTS' are available on the host
     ansible.builtin.assert:
       that:
-      - item in virt_install_list_variants.stdout_lines
+      - virt_install_list_variants.stdout_lines is search(item)
       fail_msg: "The variant '{{ item }}' is not available on the host"
       success_msg: "The variant '{{ item }}' is available on the host"
       msg: "The variant '{{ item }}' is not available on the host"
@@ -107,3 +107,9 @@
     with_items: "{{ images_to_be_download }}"
     when: images_to_be_download|length > 0
     register: download_images
+
+  - name: prepare-kvm | Image is downloaded in store
+    ansible.builtin.debug:
+      msg: "Image {{ item.image }} is downloaded in store: {{ IMAGE_TEMPLATE_STORE }}"
+    with_items: "{{ images_to_be_download }}"
+    when: download_images is changed

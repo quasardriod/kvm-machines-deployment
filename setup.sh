@@ -5,13 +5,18 @@
 default_vars_override_option=""
 source scripts/constant.sh
 
-# Artifacts location on ansible host
-deployer_artifacts_dir=/tmp/artifacts/local
-
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
 local_kvm_host_inventory="inventory/kvm-local.yml"
 
+function set_virsh(){
+    if [ -z $LIBVIRT_DEFAULT_URI ]; then
+        echo "Please set LIBVIRT_DEFAULT_URI environment variable"
+        exit 1
+    fi
+
+    VIRSH_CMD="virsh --connect $LIBVIRT_DEFAULT_URI"
+}
 function pre_checks(){
     # Check if the ansible-playbook command is available
     if ! command -v ansible-playbook &> /dev/null; then
@@ -48,14 +53,14 @@ function prepare_kvm_host(){
     fi
 }
 
-# function read_artifacts(){
-#     # Read the artifacts pulled from KVM host
-# }
+function show_final_info(){
+    build_artifacts=$1
+    success "\n-----NOTE:-----\n\tGenerated Build Artifacts: $build_artifacts\n"
+}
 
 function update_guest_os(){
     configure_pb="ansible/configure-guests/pb-configure-guest.yml"
-    inventory_file=$(yq .inventory_artifact inventory/group_vars/all.yml)
-    inventory_artifact=$deployer_artifacts_dir/$inventory_file
+    inventory_artifact=$(find $build_artifacts -name guests-inventory-*.yml | head -n 1)
 
     if [ ! -f $inventory_artifact ]; then
         error "\nERROR: $inventory_artifact not found\n"
@@ -136,8 +141,7 @@ function guests_lcm(){
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "remote_artifacts_dir=$remote_artifacts_dir" \
+        ansible-playbook -i $remote_kvm_host_inventory $build_pb -e @$job_inputs_file \
         -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,} \
         $default_vars_override_option
 
@@ -150,9 +154,17 @@ function main(){
     set_virsh_connection
     generate_kvm_host_inventory
 
-    [ ! -d $deployer_artifacts_dir ] && mkdir -p $deployer_artifacts_dir
+    # Artifacts location on ansible controller
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        build_artifacts="/tmp/artifacts/kvm_local"
+    fi
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+        build_artifacts="/tmp/artifacts/kvm_remote"
+    fi
 
-    info_y "Build artifacts on Ansible Controller: $deployer_artifacts_dir\n"
+    [[ ! -d $build_artifacts ]] && mkdir -p $build_artifacts
+
+    info_y "Build artifacts on Ansible Controller: $build_artifacts\n"
     info_y "Build artifacts on KVM host: $(yq .kvm_artifacts_dir inventory/group_vars/all.yml)\n"
 
     build_pb="ansible/build-guests/pb-build-guest.yml"
@@ -170,8 +182,8 @@ function main(){
 
         # Call playbook to start building machines
         ansible-playbook -i $local_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir" \
-        $default_vars_override_option
+        -e @$job_inputs_file $default_vars_override_option \
+        -e build_artifacts=$build_artifacts
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
@@ -183,18 +195,25 @@ function main(){
             update_guest_os
         fi
 
-        # Shutdown the machines before taking snapshot
-        info "\nINFO: Shutdown the machines before taking snapshot\n"
-        operation="Shutdown"
-        guests_lcm
+        # Prompt user to take a snapshot of the new machine
+        read -p "Do you want to take a snapshot of the newly created machines? [y/N]: " take_snapshot
+        if [[ ${take_snapshot,,} == "y" ]] || [[ ${take_snapshot,,} == "yes" ]]; then
+            info "\nINFO: Taking snapshot of the newly created machines\n"
+            # Shutdown the machines before taking snapshot
+            info "\nINFO: Shutdown the machines before taking snapshot\n"
+            operation="Shutdown"
+            guests_lcm
 
-        # Take snapshot of the new created machines
-        operation="Snapshot"
-        guests_lcm
+            # Take snapshot of the new created machines
+            operation="Snapshot"
+            guests_lcm
 
-        # Start the machines after snapshot
-        operation="Start"
-        guests_lcm
+            # Start the machines after snapshot
+            operation="Start"
+            guests_lcm
+        else
+            info "\nINFO: Skipping snapshot creation...\n"
+        fi
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
@@ -204,7 +223,7 @@ function main(){
         fi
 
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "deployer_artifacts_dir=$deployer_artifacts_dir" \
+        -e @$job_inputs_file -e "build_artifacts=$build_artifacts" \
         $default_vars_override_option
 
         if [ $? -ne 0 ]; then
@@ -227,6 +246,9 @@ function main(){
         operation="Start"
         guests_lcm
     fi
+
+    # Always run at last
+    show_final_info $build_artifacts
 }
 
 function kvm_host_capabilities(){
@@ -273,9 +295,9 @@ usage(){
     echo "Usage: $0 [options]"
     echo "Options:"
     echo " -p                    Prepare KVM Host"
-    echo " -m <job-inputs.yml>   Build and Configure KVM guests, required: [job-inputs.yml]"
+    echo " -m [job-inputs.yml]   Build and Configure KVM guests, required: [job-inputs.yml]"
     echo " -i                    List available images and properties"
-    echo " -l <job-inputs.yml>   Life-cycle Management of KVM guests, required: [job-inputs.yml]"
+    echo " -l [job-inputs.yml]   Life-cycle Management of KVM guests, required: [job-inputs.yml]"
 	echo " -h                    help, this message"
 	echo
 	exit 0

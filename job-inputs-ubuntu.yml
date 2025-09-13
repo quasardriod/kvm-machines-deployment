@@ -1,0 +1,28 @@
+# Ensure cloud_user is matched with the one in cloud_config.user_data
+cloud_config:
+  cloud_user: cloud-user
+  user_data: |
+    #cloud-config
+    users:
+    - name: cloud-user
+      hashed_passwd: "$6$7sAjjRtHiN/tVCeA$AIWaVIT3O451WZPzpkizAg459OMkmmj4nFRfemIEs2.6Tf3wx2voacQeDb2egYeg4TtzTEmS2Tof0oTKl8nR50"
+      shell: /bin/bash
+      lock_passwd: false
+      ssh_pwauth: True
+      chpasswd: { expire: False }
+      sudo: [ "ALL=(ALL) NOPASSWD:ALL" ]
+      ssh-authorized-keys:
+        - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+kvm_guest_machines:
+- name: ubuntu-test
+  variant: ubuntu22.04
+  cloud_image: ""
+  vcpu: 4
+  ram: 4096
+  disk_size: 30
+  nic: 1
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"

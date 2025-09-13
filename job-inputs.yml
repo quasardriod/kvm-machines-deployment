@@ -3,39 +3,39 @@ cloud_config:
   cloud_user: cloud-user
   user_data: |
     #cloud-config
-    password: redhat
-    chpasswd: {expire: False}
-    ssh_pwauth: true
-    ssh_authorized_keys:
-      - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
     users:
       - name: cloud-user
-        password: redhat
+        hashed_passwd: "$6$7sAjjRtHiN/tVCeA$AIWaVIT3O451WZPzpkizAg459OMkmmj4nFRfemIEs2.6Tf3wx2voacQeDb2egYeg4TtzTEmS2Tof0oTKl8nR50"
+        shell: /bin/bash
+        lock_passwd: false
+        ssh_pwauth: True
         chpasswd: {expire: False}
         sudo: ['ALL=(ALL) NOPASSWD:ALL']
         ssh-authorized-keys:
           - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
 kvm_guest_machines:
-- name: k8s-master
-  build_type: kubernetes
-  node_role: master
-  variant: centos-stream9
-  cloud_image: ""
-  vcpu: 4
-  ram: 4096
-  nic: 1
-  networks:
-  - default
-  cloud_user: "{{ cloud_config.cloud_user }}"
-  user_data: "{{ cloud_config.user_data }}"
-- name: k8s-worker
+# - name: k8s-master
+#   build_type: kubernetes
+#   node_role: master
+#   variant: centos-stream9
+#   cloud_image: ""
+#   vcpu: 4
+#   ram: 4096
+#   disk_size: 30
+#   nic: 1
+#   networks:
+#   - default
+#   cloud_user: "{{ cloud_config.cloud_user }}"
+#   user_data: "{{ cloud_config.user_data }}"
+- name: k8s-worker2
   build_type: kubernetes
   node_role: worker
   variant: centos-stream9
   cloud_image: ""
-  vcpu: 2
-  ram: 2048
+  vcpu: 1
+  ram: 1024
+  disk_size: 20
   nic: 1
   networks:
   - default

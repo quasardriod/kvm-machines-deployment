@@ -63,8 +63,28 @@ function set_virsh_connection(){
 
     if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
         error "\nERROR: 'LIBVIRT_DEFAULT_URI' is not exported for QEMU connection.\n"
-        error "Visit 'QEMU Connection' in 'README.md' for more information\n"
-        exit 1
+
+        read -r -p "Do you wish to set it now? [y/N]: " consent
+        if [[ ${consent,,} == "y" ]] || [[ ${consent,,} == "yes" ]];then
+            info_y "\nINFO: Please provide the QEMU connection string:\n"
+            info_y "------------------------------------------------\n"
+            info_y "For local KVM host: export LIBVIRT_DEFAULT_URI='qemu:///system'\n"
+            info_y "For remote KVM host: export LIBVIRT_DEFAULT_URI='qemu+ssh://root@<remote-kvm-host>/system'\n"
+            info_y "------------------------------------------------\n"
+            read -p "LIBVIRT_DEFAULT_URI: " LIBVIRT_DEFAULT_URI
+            
+            export LIBVIRT_DEFAULT_URI=$LIBVIRT_DEFAULT_URI
+            if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
+                error "\nERROR: 'LIBVIRT_DEFAULT_URI' is not set, please set it and re-run the script.\n"
+                exit 1
+            fi
+
+            success "\nINFO: LIBVIRT_DEFAULT_URI is set to $LIBVIRT_DEFAULT_URI\n"
+            pause
+        else
+            error "\nBye...\n"
+            exit 2
+        fi
     fi
     info_y "\nINFO: LIBVIRT_DEFAULT_URI is set to $LIBVIRT_DEFAULT_URI\n"
     info "\nINFO: Preparing $LIBVIRT_DEFAULT_URI KVM host\n"
@@ -84,6 +104,16 @@ function set_virsh_connection(){
                 exit 1
             fi
             info "INFO: Current user is not root, setting up sudo for virsh command\n"
+
+            # Ensure libvirtd service is running
+            if ! sudo systemctl is-active --quiet libvirtd; then
+                info "INFO: Starting libvirtd service...\n"
+                if ! sudo systemctl start libvirtd; then
+                    error "Failed to start libvirtd service. Please check the service status.\n"
+                    exit 1
+                fi
+                info "INFO: libvirtd service started successfully.\n"
+            fi
             export VIRSH_CMD="sudo virsh"
         else
             export VIRSH_CMD="virsh"
