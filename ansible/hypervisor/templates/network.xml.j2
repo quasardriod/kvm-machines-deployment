@@ -1,0 +1,11 @@
+<network>
+  <name>{{ net_name }}</name>
+  {% if forward_mode is defined and forward_mode != "" %}
+  <forward mode='{{ forward_mode }}'/>
+  {% endif %}
+  <ip address='{{ gw }}' netmask='{{ netmask }}'>
+    <dhcp>
+      <range start='{{ range_start }}' end='{{ range_end }}'/>
+    </dhcp>
+  </ip>
+</network>

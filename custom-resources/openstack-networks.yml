@@ -1,0 +1,18 @@
+# Without forward_mode=nat, the network is isolated and VMs cannot access outside world.
+# With forward_mode=nat, VMs can access physical network and outside world via NAT.
+
+# dataplane network for OpenStack internal data traffic between VMs
+additional_kvm_networks:
+- name: dataplane
+  gw: 192.168.51.1
+  netmask: 255.255.255.0
+  range:
+    start: 192.168.51.2
+    end: 192.168.51.254
+- name: external
+  forward_mode: nat
+  gw: 192.168.50.1
+  netmask: 255.255.255.0
+  range:
+    start: 192.168.50.2
+    end: 192.168.50.254

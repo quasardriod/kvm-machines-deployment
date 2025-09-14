@@ -1,0 +1,108 @@
+- name: networks | Get list of all networks available on the host
+  ansible.builtin.shell: virsh net-list|egrep 'active'|awk '{print $1}'
+  register: virt_install_list_networks
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == "RedHat"
+
+- name: networks | Show list of all networks available on the host
+  ansible.builtin.debug:
+    var: virt_install_list_networks.stdout_lines
+  when: ansible_os_family == "RedHat"
+
+- name: networks | Ensure additional_kvm_networks properties are not same as default network bridge
+  ansible.builtin.assert:
+    that:
+    - item.name != default_network_name
+    - item.gw != default_network_gw
+    - item.range.start != default_network_range.start
+    - item.range.end != default_network_range.end
+    fail_msg: 
+      - "The network name cannot be same as default network name '{{ default_network_name }}'"
+      - "The gateway for network '{{ item.name }}' is same as default network gateway '{{ default_network_gw }}'"
+      - "The range 'start' for network '{{ item.name }}' is same as default network range start '{{ default_network_range.start }}'"
+      - "The range 'end' for network '{{ item.name }}' is same as default network range end '{{ default_network_range.end }}'"
+  with_items: "{{ additional_kvm_networks }}"
+  when: additional_kvm_networks is defined
+  vars:
+    default_network_name: "{{ KVM_NETWORKS[0].name }}"
+    default_network_gw: "{{ KVM_NETWORKS[0].gw }}"
+    default_network_range: "{{ KVM_NETWORKS[0].range }}"
+
+- name: network | Append additional_kvm_networks to KVM_NETWORKS
+  ansible.builtin.set_fact:
+    KVM_NETWORKS: "{{ KVM_NETWORKS + additional_kvm_networks }}"
+  when: additional_kvm_networks is defined
+
+- name: networks | Show final KVM_NETWORKS
+  ansible.builtin.debug:
+    var: KVM_NETWORKS
+  when: KVM_NETWORKS is defined
+
+- name: networks | set fact create_networks
+  ansible.builtin.set_fact:
+    create_networks: "{{ create_networks + [network] }}"
+  loop: "{{ networks_list }}"
+  loop_control:
+    loop_var: network
+  when: network not in virt_install_list_networks.stdout_lines
+  vars:
+    networks_list: "{{ KVM_NETWORKS | map(attribute='name') | list }}"
+
+- name: networks | Show default network to be created
+  ansible.builtin.debug:
+    var: create_networks
+
+- name: networks | Ensure 'create_networks' bridge is not used by any other non-default network already present on host
+  ansible.builtin.shell: |
+    for net in {{ virt_install_list_networks.stdout_lines | join(' ') }}; do
+      # Check gateway
+      if virsh net-dumpxml $net | grep -q "<ip address='{{ item.gw }}'"; then
+      echo "ERROR: The gateway '{{ item.gw }}' for requested network '{{ item.name }}' is already in use by network '$net'"; exit 1;
+      fi
+      # Check range start
+      if virsh net-dumpxml $net | grep -q "start='{{ item.range.start }}'"; then
+      echo "ERROR: The range start '{{ item.range.start }}' for requested network '{{ item.name }}' is already in use by network '$net'"; exit 1;
+      fi
+      # Check range end
+      if virsh net-dumpxml $net | grep -q "end='{{ item.range.end }}'"; then
+      echo "ERROR: The range end '{{ item.range.end }}' for requested network '{{ item.name }}' is already in use by network '$net'"; exit 1;
+      fi
+      # Check network name (should not match any existing network)
+      if [ "$net" = "{{ item.name }}" ]; then
+      echo "ERROR: The network name '{{ item.name }}' is already in use by network '$net'"; exit 1;
+      fi
+    done
+  register: check_bridge_used
+  changed_when: false
+  loop: "{{ KVM_NETWORKS }}"
+  loop_control:
+    loop_var: item
+  when:
+    - item.name in create_networks
+    - create_networks|length > 0
+
+- name: networks | Ensure 'default' is first network in 'KVM_NETWORKS'
+  ansible.builtin.assert:
+    that:
+    - KVM_NETWORKS[0].name == 'default'
+    fail_msg: "The first network in 'KVM_NETWORKS' must be 'default'"
+    success_msg: "The first network in 'KVM_NETWORKS' is 'default'"
+  when: KVM_NETWORKS is defined
+
+- name: networks | Create "default" first if it is in 'create_networks'
+  ansible.builtin.include_tasks: include/create-network.yml
+  vars:
+    _network: "{{ KVM_NETWORKS[0] }}"
+  when:
+    - KVM_NETWORKS[0].name in create_networks
+    - create_networks|length > 0
+
+- name: networks | Create Networks listed in 'create_networks'
+  ansible.builtin.include_tasks: include/create-network.yml
+  loop: "{{ KVM_NETWORKS[1:] }}"
+  loop_control:
+    loop_var: _network
+  when:
+    - _network.name in create_networks
+    - create_networks|length > 0

@@ -150,6 +150,9 @@ function guests_lcm(){
 }
 
 function main(){
+    guest_machines_input=$1
+    [ ! -f $guest_machines_input ] && echo "File $guest_machines_input not found" && exit 1
+    
     user_consent
     set_virsh_connection
     generate_kvm_host_inventory
@@ -169,9 +172,6 @@ function main(){
 
     build_pb="ansible/build-guests/pb-build-guest.yml"
    
-    [[ -z $1 ]] && echo "Please provide the job-inputs.yml file" && exit 1   
-    job_inputs_file=$1
-    [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
 
@@ -270,11 +270,11 @@ function kvm_host_capabilities(){
     yq eval '.IMAGES_STORE' inventory/group_vars/all.yml
 
     info "\nShow KVM bridge Networks:\n"
-    info "---------------------\n"
-    for network in $(yq eval '.KVM_NETWORKS[]' inventory/group_vars/all.yml); do
-        info "$network:\n"
-        success "\tdhcp lease: $($VIRSH_CMD net-dumpxml $network|grep -E range|xargs)\n"
+    info "---------------------"
+    for network in $($VIRSH_CMD net-list|grep -Ev "Name|---"|awk '{print $1}'|xargs); do
+        info_y "\n$network: -> dhcp lease: $($VIRSH_CMD net-dumpxml $network | grep -E range | xargs)"
     done
+    echo
 
     info "\nShow KVM Host CPU:\n"
     info "---------------------\n"
@@ -290,28 +290,73 @@ function kvm_host_capabilities(){
     info_y "\nNOTE: To override the default user to be created by cloud-init,\nplease set the variable cloud_user in your job-inputs.yml file\n"
 }
 
+function additional_kvm_networks(){
+    if [ -z $1 ];then
+        error "\nPlease provide the network yaml file\n"
+        info_y "Visit [Create Additional KVM Networks] for more information.\n"
+        exit 1
+    fi
+    network_file=$1
+    [ ! -f $network_file ] && error "\nFile $network_file not found\n" && exit 1
+
+    networks_count=$(yq eval '.additional_kvm_networks | length' $network_file)
+    if [ $networks_count -eq 0 ]; then
+        error "\nNo additional_kvm_networks found in $network_file\n"
+        exit 1
+    fi
+    
+    info_y "\nINFO: Following additional networks will be created on KVM host:\n"
+    info_y "------------------------------------------------\n"
+    yq eval '.additional_kvm_networks' $network_file
+    info_y "\n------------------------------------------------\n"
+
+    pause
+    
+    set_virsh_connection
+
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
+        $default_vars_override_option -e @$network_file -e networks=true -e images=false -b 
+    fi
+
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+        remote_kvm
+        ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
+        $default_vars_override_option -b
+    fi
+}
+
 usage(){
 	echo
     echo "Usage: $0 [options]"
     echo "Options:"
     echo " -p                    Prepare KVM Host"
-    echo " -m [job-inputs.yml]   Build and Configure KVM guests, required: [job-inputs.yml]"
+    echo " -b [job-inputs.yml]   Build and Configure KVM guests, required: [job-inputs.yml]"
     echo " -i                    List available images and properties"
     echo " -l [job-inputs.yml]   Life-cycle Management of KVM guests, required: [job-inputs.yml]"
 	echo " -h                    help, this message"
+    echo " -n [network.yml]      Create additional networks on KVM host"
 	echo
 	exit 0
 }
 
-while getopts 'ihpl:m:' opt; do
+while getopts 'ihpl:b:n:' opt; do
     case $opt in
-        m) 
+        b) 
             if [ -z "$OPTARG" ]; then
-                echo "Error: -m requires an argument."
+                echo "Error: -b requires an argument."
                 usage
                 exit 1
             fi
             main "$OPTARG"
+            ;;
+        n) 
+            if [ -z "$OPTARG" ]; then
+                echo "Error: -n requires an argument."
+                usage
+                exit 1
+            fi
+            additional_kvm_networks "$OPTARG"
             ;;
         h) usage;;
         p) prepare_kvm_host;;

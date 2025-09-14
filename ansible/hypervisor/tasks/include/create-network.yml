@@ -1,0 +1,27 @@
+- name: create-network | Show network to be created
+  ansible.builtin.debug:
+    var: _network
+
+- name: create-network | Template out network xml from template
+  ansible.builtin.template:
+    src: network.xml.j2
+    dest: "/var/tmp/{{ _network.name }}.xml"
+    mode: '0644'
+  vars:
+    net_name: "{{ _network.name }}"
+    forward_mode: "{{ _network.forward_mode|default('') }}"
+    gw: "{{ _network.gw }}"
+    netmask: "{{ _network.netmask }}"
+    range_start: "{{ _network.range.start }}"
+    range_end: "{{ _network.range.end }}"
+
+- name: create-network | Define the {{ _network.name }} from xml
+  ansible.builtin.command: "virsh net-define /var/tmp/{{ _network.name }}.xml"
+  args:
+    creates: "/etc/libvirt/qemu/networks/{{ _network.name }}.xml"
+
+- name: create-network | Set {{ _network.name }} to autostart
+  ansible.builtin.command: "virsh net-autostart {{ _network.name }}"
+
+- name: create-network | Start the {{ _network.name }} network
+  ansible.builtin.command: "virsh net-start {{ _network.name }}"

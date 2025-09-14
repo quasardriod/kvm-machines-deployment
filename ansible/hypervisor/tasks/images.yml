@@ -1,0 +1,74 @@
+- name: images | Ensure {{ IMAGES_STORE }} directory exists
+  ansible.builtin.file:
+    path: "{{ IMAGES_STORE }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: images | Get  list of all variants available on the host
+  ansible.builtin.shell: virt-install --os-variant list
+  register: virt_install_list_variants
+  changed_when: false
+
+- name: images | Ensure 'VARIANTS' are available on the host
+  ansible.builtin.assert:
+    that:
+    - virt_install_list_variants.stdout_lines is search(item)
+    fail_msg: "The variant '{{ item }}' is not available on the host"
+    success_msg: "The variant '{{ item }}' is available on the host"
+    msg: "The variant '{{ item }}' is not available on the host"
+  with_items: "{{ VARIANTS }}"
+  when: ansible_os_family == "RedHat"
+
+- name: images | Lookup qcow2 images in store
+  ansible.builtin.find:
+    paths: "{{ IMAGE_TEMPLATE_STORE }}"
+    patterns: "*.qcow2"
+    recurse: no
+    file_type: file
+  register: qcow2_images_list
+
+- name: images | Set fact 'images_list_in_store'
+  ansible.builtin.set_fact:
+    images_list_in_store: "{{ qcow2_images_list.files | map(attribute='path') | list }}"
+
+- name: images | Show available qcow2 images in store
+  ansible.builtin.debug:
+    msg: "{{ images_list_in_store }}"
+
+- name: images | Append 'cloud_images' to be downloaded from public image source
+  ansible.builtin.set_fact:
+    images_to_be_download: "{{ images_to_be_download + [{'variant': item[0].variant, 'download_uri': item[0].download_uri, 'image': item[1]}] }}"
+  with_nested:
+  - "{{ cloud_images }}"
+  - "{{ all_images }}"
+  when:
+  - item[1] in item[0].images
+  - images_list_in_store is not search(item[1])
+  loop_control:
+    label: "{{ item[0].variant }} - {{ item[1] }}"
+  vars:
+    all_images: "{{ cloud_images | map(attribute='images') | list | sum(start=[]) }}"
+    # base_name_list: "{{ cloud_images | map(attribute='variant') | map('regex_replace', '-.*|[0-9]', '') | list }}"
+
+- name: images | Show images to be downloaded
+  ansible.builtin.debug:
+    msg: "{{ images_to_be_download }}"
+
+- name: images | Download images from public image source
+  ansible.builtin.get_url:
+    url: "{{ item.download_uri }}/{{ item.image }}"
+    dest: "{{ IMAGE_TEMPLATE_STORE }}/"
+    mode: '0644'
+    owner: root
+    group: root
+  with_items: "{{ images_to_be_download }}"
+  when: images_to_be_download|length > 0
+  register: download_images
+
+- name: images | Image is downloaded in store
+  ansible.builtin.debug:
+    msg: "Image {{ item.image }} is downloaded in store: {{ IMAGE_TEMPLATE_STORE }}"
+  with_items: "{{ images_to_be_download }}"
+  when: download_images is changed
