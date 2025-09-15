@@ -18,6 +18,12 @@ function set_virsh(){
     VIRSH_CMD="virsh --connect $LIBVIRT_DEFAULT_URI"
 }
 function pre_checks(){
+    # Ensure python3.12 is installed
+    if ! command -v python3.12 &> /dev/null; then
+        echo "python3.12 could not be found. Please install python3.12."
+        exit 1
+    fi
+
     # Check if the ansible-playbook command is available
     if ! command -v ansible-playbook &> /dev/null; then
         echo "ansible-playbook could not be found. Please install Ansible."

@@ -1,4 +1,5 @@
 - [Introduction](#introduction)
+- [Requirements](#requirements)
 - [QEMU Connection](#qemu-connection)
   - [*Set QEMU for local KVM host*](#set-qemu-for-local-kvm-host)
   - [*Set QEMU to connect to a remote KVM host*](#set-qemu-to-connect-to-a-remote-kvm-host)
@@ -13,6 +14,14 @@
 ## Introduction
 [What is KVM](https://www.redhat.com/en/topics/virtualization/what-is-KVM)
 
+---
+
+## Requirements
+- Ansible Core v2.17+
+- Python 3.12
+
+**Ansible Collections:**
+- community.general
 ---
 
 ## QEMU Connection
