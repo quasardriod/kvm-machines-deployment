@@ -271,7 +271,7 @@ function kvm_host_capabilities(){
 
     info "\nShow KVM bridge Networks:\n"
     info "---------------------"
-    for network in $($VIRSH_CMD net-list|grep -Ev "Name|---"|awk '{print $1}'|xargs); do
+    for network in $($VIRSH_CMD net-list --all --name); do
         info_y "\n$network: -> dhcp lease: $($VIRSH_CMD net-dumpxml $network | grep -E range | xargs)"
     done
     echo

@@ -31,15 +31,16 @@ kvm_guest_machines:
 - name: ost-ctrl
   variant: ubuntu24.04
   cloud_image: ""
-  vcpu: 8
-  ram: 10240
-  disk_size: 40
+  vcpu: 1
+  ram: 2024
+  disk_size: 10
   networks:
   - default
   - dataplane
   - external
   cloud_user: "{{ cloud_config.cloud_user }}"
   user_data: "{{ cloud_config.user_data }}"
+
 # - name: ost-compute1
 #   variant: ubuntu22.04
 #   cloud_image: ""

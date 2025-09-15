@@ -3,11 +3,11 @@ install_root_pub_key: true
 root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"
 
 # Variables to define KVM host properties
-IMAGE_TEMPLATE_STORE: "/vms/artifactory"
-IMAGES_STORE: "/vms"
+#IMAGE_TEMPLATE_STORE: "/vms/artifactory"
+#IMAGES_STORE: "/vms"
 
-# IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
-# IMAGES_STORE: "/var/lib/libvirt/images"
+IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
+IMAGES_STORE: "/var/lib/libvirt/images"
 
 # virt-install --os-variant list ... output should contain these variants
 cloud_images:
@@ -15,10 +15,10 @@ cloud_images:
   download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
   images:
   - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
-- variant: centos-stream9
-  download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
-  images:
-  - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
+# - variant: centos-stream9
+#   download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
+#   images:
+#   - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
 # - variant: ubuntu22.04
 #   download_uri: "https://cloud-images.ubuntu.com/jammy/current/"
 #   images:

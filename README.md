@@ -100,7 +100,6 @@ Create `yaml` file in this directory to create additional networks.
 ```yaml
 additional_kvm_networks:
 - name: dataplane
-  bridge: virbr0
   forward_mode: nat
   gw: 192.168.64.1
   netmask: 255.255.255.0

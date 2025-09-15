@@ -23,7 +23,7 @@
     ansible.builtin.debug:
       var: kvm_guest_machines
 
-  # Block to ensure all machines requested for a single variant
+  # Ensure all machines requested are of same variant
   - name: kvm-guest | Read guests variants
     ansible.builtin.set_fact:
       user_machine_variants: "{{ user_machine_variants + [item.variant] }}"
@@ -46,7 +46,7 @@
       success_msg: "The variant '{{ item }}' is available on the host"
     loop: "{{ user_machine_variants }}"
 
-  # Block to ensure all machines requested for a single image
+  # Ensure all machines requested are of same image if user provided any image
   - name: kvm-guest | Read guests images
     ansible.builtin.set_fact:
       user_machine_images: "{{ user_machine_images + [item.cloud_image] }}"
@@ -61,6 +61,7 @@
       - user_machine_images|length <= 1
       fail_msg: "User should not request more than one image"
 
+  # If user provided an image, ensure it is supported for the given variant
   - name: kvm-guest | Check if user requested image is supported
     ansible.builtin.assert:
       that:
@@ -74,12 +75,12 @@
       build_image: "{{ user_machine_images[0] }}"
     when: user_machine_images|length == 1
 
-  - name: kvm-guest | Selecting image based on given variant as user has no requested specific image
+  - name: kvm-guest | Show message when no image provided by user
     ansible.builtin.debug:
       msg: "No image provided by user, selecting image based on variant '{{ user_machine_variants[0] }}'"
     when: user_machine_images|length == 0
 
-  - name: kvm-guest | Set fact 'build_image' for default image based on variant"
+  - name: kvm-guest | Set fact 'build_image' for default image based on variant if user did not provide any image
     ansible.builtin.set_fact:
       build_image: "{{ item.images[0] }}"
       build_machine_variant: "{{ user_machine_variants[0] }}"
@@ -92,7 +93,27 @@
     ansible.builtin.debug:
       msg: "Selected image '{{ build_image }}' for variant '{{ build_machine_variant }}'"
 
-  # include/build.yml will be called in include/disks.yml after disks are created
+  - name: kvm-guest | Get all available networks on KVM host
+    ansible.builtin.command: "virsh net-list --all --name"
+    when: ansible_os_family == "RedHat"
+    register: available_kvm_networks
+
+  - name: kvm-guest | Show available networks
+    ansible.builtin.debug:
+      var: available_kvm_networks.stdout_lines
+
+  - name: kvm-guest | Ensure Guest machine network is available on KVM host
+    ansible.builtin.assert:
+      that:
+      - item in available_kvm_networks.stdout_lines
+      fail_msg: "The network '{{ item }}' is not available on the host"
+      success_msg: "The network '{{ item }}' is available on the host"
+    loop: "{{ kvm_guest_machines | map(attribute='networks') | sum(start=[]) | unique }}"
+    when: ansible_os_family == "RedHat"
+
+  - fail:
+
+      # include/build.yml will be called in include/disks.yml after disks are created
   - name: kvm-guest | Include include/disks.yml
     ansible.builtin.include_tasks: include/disks.yml
     loop: "{{ kvm_guest_machines }}"

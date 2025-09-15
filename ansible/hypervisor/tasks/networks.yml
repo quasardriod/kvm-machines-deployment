@@ -1,5 +1,5 @@
 - name: networks | Get list of all networks available on the host
-  ansible.builtin.shell: virsh net-list|egrep 'active'|awk '{print $1}'
+  ansible.builtin.shell: virsh net-list --all --name
   register: virt_install_list_networks
   changed_when: false
   failed_when: false
@@ -17,11 +17,11 @@
     - item.gw != default_network_gw
     - item.range.start != default_network_range.start
     - item.range.end != default_network_range.end
-    fail_msg: 
-      - "The network name cannot be same as default network name '{{ default_network_name }}'"
-      - "The gateway for network '{{ item.name }}' is same as default network gateway '{{ default_network_gw }}'"
-      - "The range 'start' for network '{{ item.name }}' is same as default network range start '{{ default_network_range.start }}'"
-      - "The range 'end' for network '{{ item.name }}' is same as default network range end '{{ default_network_range.end }}'"
+    fail_msg:
+    - "The network name cannot be same as default network name '{{ default_network_name }}'"
+    - "The gateway for network '{{ item.name }}' is same as default network gateway '{{ default_network_gw }}'"
+    - "The range 'start' for network '{{ item.name }}' is same as default network range start '{{ default_network_range.start }}'"
+    - "The range 'end' for network '{{ item.name }}' is same as default network range end '{{ default_network_range.end }}'"
   with_items: "{{ additional_kvm_networks }}"
   when: additional_kvm_networks is defined
   vars:
@@ -79,8 +79,8 @@
   loop_control:
     loop_var: item
   when:
-    - item.name in create_networks
-    - create_networks|length > 0
+  - item.name in create_networks
+  - create_networks|length > 0
 
 - name: networks | Ensure 'default' is first network in 'KVM_NETWORKS'
   ansible.builtin.assert:
@@ -95,8 +95,8 @@
   vars:
     _network: "{{ KVM_NETWORKS[0] }}"
   when:
-    - KVM_NETWORKS[0].name in create_networks
-    - create_networks|length > 0
+  - KVM_NETWORKS[0].name in create_networks
+  - create_networks|length > 0
 
 - name: networks | Create Networks listed in 'create_networks'
   ansible.builtin.include_tasks: include/create-network.yml
@@ -104,5 +104,5 @@
   loop_control:
     loop_var: _network
   when:
-    - _network.name in create_networks
-    - create_networks|length > 0
+  - _network.name in create_networks
+  - create_networks|length > 0
