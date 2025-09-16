@@ -9,3 +9,5 @@ all:
     ansible_become: true
     ansible_become_method: sudo
     ansible_become_user: root
+    IMAGE_TEMPLATE_STORE: "/vms/artifactory"
+    IMAGES_STORE: "/vms"

@@ -23,6 +23,7 @@
 
 **Ansible Collections:**
 - community.general
+
 ---
 
 ## QEMU Connection and KVM Host Inventory

@@ -33,11 +33,13 @@ function pre_checks(){
     # Ensure ansible collections are installed
     if ! ansible-galaxy collection list | grep -q 'community.general'; then
         echo "Ansible collection community.general not found. Installing..."
-        ansible-galaxy collection install -r scripts/requirements.yml
-        if [ $? -ne 0 ]; then
-            echo "Failed to install Ansible collections. Please check your internet connection and try again."
-            exit 1
-        fi
+        for collection in $(yq eval '.collections[]|.name' scripts/requirements.yml);do
+            ansible-galaxy collection install $collection
+            if [ $? -ne 0 ]; then
+                echo "Failed to install Ansible collections. Please check your internet connection and try again."
+                exit 1
+            fi
+        done
     fi
     
     # Check if the yq command is available
