@@ -10,6 +10,40 @@
     var: virt_install_list_networks.stdout_lines
   when: ansible_os_family == "RedHat"
 
+- name: networks | Get default network XML
+  ansible.builtin.command: "virsh net-dumpxml default"
+  register: default_network_xml
+  changed_when: false
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+
+- name: networks | Ensure default network properties are as expected
+  ansible.builtin.shell: |
+    default_network_dump="$(virsh net-dumpxml default)"
+    if ! echo "$default_network_dump" | grep -q "bridge name='{{ default_network_expected_bridge }}'"; then
+      echo "ERROR: The bridge for default network is not as expected '{{ default_network_expected_bridge }}'"; exit 1;
+    fi
+    if ! echo "$default_network_dump" | grep -q "forward mode='{{ default_network_expected_forward_mode }}'"; then
+      echo "ERROR: The forward mode for default network is not as expected '{{ default_network_expected_forward_mode }}'"; exit 1;
+    fi
+    if ! echo "$default_network_dump" | grep -q "ip address='{{ default_network_expected_gw }}'"; then
+      echo "ERROR: The gateway for default network is not as expected '{{ default_network_expected_gw }}'"; exit 1;
+    fi
+    if ! echo "$default_network_dump" | grep -q "netmask='{{ default_network_expected_netmask }}'"; then
+      echo "ERROR: The netmask for default network is not as expected '{{ default_network_expected_netmask }}'"; exit 1;
+    fi
+    echo "The default network properties are as expected"
+  changed_when: false
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+  vars:
+    default_network_expected_bridge: "{{ KVM_NETWORKS[0].bridge }}"
+    default_network_expected_forward_mode: "{{ KVM_NETWORKS[0].forward_mode }}"
+    default_network_expected_gw: "{{ KVM_NETWORKS[0].gw }}"
+    default_network_expected_netmask: "{{ KVM_NETWORKS[0].netmask }}"
+
 - name: networks | Ensure additional_kvm_networks properties are not same as default network bridge
   ansible.builtin.assert:
     that:
@@ -98,7 +132,7 @@
   - KVM_NETWORKS[0].name in create_networks
   - create_networks|length > 0
 
-- name: networks | Create Networks listed in 'create_networks'
+- name: networks | Create Networks listed in 'create_networks' added from additional_kvm_networks
   ansible.builtin.include_tasks: include/create-network.yml
   loop: "{{ KVM_NETWORKS[1:] }}"
   loop_control:

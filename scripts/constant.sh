@@ -134,6 +134,7 @@ function set_virsh_connection(){
 
 # Generate ansible inventory for remote KVM host on the fly
 function generate_kvm_host_inventory(){
+    echo "FIXME" && exit 1
     # https://www.bashsupport.com/bash/variables/bash_rematch/
 
     # Generate inventory from remote QEMU connection LIBVIRT_DEFAULT_URI

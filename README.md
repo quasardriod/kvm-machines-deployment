@@ -1,6 +1,6 @@
 - [Introduction](#introduction)
 - [Requirements](#requirements)
-- [QEMU Connection](#qemu-connection)
+- [QEMU Connection and KVM Host Inventory](#qemu-connection-and-kvm-host-inventory)
   - [*Set QEMU for local KVM host*](#set-qemu-for-local-kvm-host)
   - [*Set QEMU to connect to a remote KVM host*](#set-qemu-to-connect-to-a-remote-kvm-host)
   - [Prepare KVM Host Inventory](#prepare-kvm-host-inventory)
@@ -8,7 +8,7 @@
 - [Tool Kit](#tool-kit)
 - [View KVM Host Capabilities](#view-kvm-host-capabilities)
 - [Prepare KVM host](#prepare-kvm-host)
-- [Build and Management of KVM guests](#build-and-management-of-kvm-guests)
+- [Build and Management of KVM Guest Machines](#build-and-management-of-kvm-guest-machines)
 - [Lifecycle Management of Guest Machines](#lifecycle-management-of-guest-machines)
 - [Create Additional KVM Networks](#create-additional-kvm-networks)
 
@@ -25,8 +25,8 @@
 - community.general
 ---
 
-## QEMU Connection
-Review [qumu-connect](./docs/qemu-connect.md) for detailed information on `virsh` connection options, to manage guest VMs on remote KVM host. Review [constant.sh](./scripts/constant.sh) for `virsh` connection configuration code.
+## QEMU Connection and KVM Host Inventory
+Review [qumu-connection](./docs/qemu-connection.md) for detailed information on `virsh` connection options, to manage guest VMs on remote KVM host. Review [constant.sh](./scripts/constant.sh) for `virsh` connection configuration code.
 
 ### *Set QEMU for local KVM host*
 *By default* [run.sh](./run.sh) will connect to local KVM host using:
@@ -43,6 +43,12 @@ export LIBVIRT_DEFAULT_URI=qemu+ssh://root@[hostname/IP]/system
 ```
 
 ### Prepare KVM Host Inventory
+Prepare Inventory of KVM hosts. KVM machines inventory mush be stored in following files.
+- **inventory/kvm-local.yml**: Running playbooks on local KVM host.
+- **inventory/kvm-remote.yml**: To run playbooks on remove KVM host.
+
+> NOTE: Based on exported `LIBVIRT_DEFAULT_URI` environment variable, inventory will be automatically seleted from the above list.
+
 **For Local KVM host**
 ```bash
 $cat inventory/kvm-local.yml 
@@ -85,9 +91,14 @@ all:
 ---
 
 ## Create Guest Machines Input File
-In order to create KVM guest machines, please create an yaml file in [guest-machines-input.yml](./guest-machines-input.yml) format.
+In order to create KVM guest machines, please provide an yaml file matching [guest-machines-input.yml](./guest-machines-input.yml) format.
+
+- Configure cloud-init based on your requirements.
+- Ensure guest machine networks are presented on KVM host.
+  - Follow [Create Additional KVM Networks](#create-additional-kvm-networks) to create additional networks on KVM host.
 
 ---
+
 ## Tool Kit
 `setup.sh` has been provided for KVM host and guest deployment and management.
 ```bash
@@ -106,15 +117,20 @@ Run below command to list supported capabilities on target KVM host.
 ---
 
 ## Prepare KVM host
-Run below command to prepare target KVM host for capabilities listed in `setup.sh -i`
+Run below command to prepare target KVM host for capabilities listed in `setup.sh -i`. This option ensure KVM host has:
+
+1. Cloud images `cloud_images` defined in [all.yml](./inventory/group_vars/all.yml).
+2. Default KVM network `KVM_NETWORKS` defined in [all.yml](./inventory/group_vars/all.yml) for guest machines.
 ```bash
 ./setup.sh -p
 ```
 
+**NOTE:** Additional networks can be created using `-n` option. Review [Create Additional KVM Networks](#create-additional-kvm-networks) for more information.
+
 ---
 
-## Build and Management of KVM guests
-Based on supported images & networks, create a yaml file for machines to be build for defined properties. Review [job-inputs.yml](./job-inputs.yml) for more information.
+## Build and Management of KVM Guest Machines
+Based on supported images & networks, create a yaml file for machines to be build for defined properties. Review [guest-machines-payload.yml](./guest-machines-payload.yml) for more information.
 
 User will be prompted to provide input on following actions after the machines are created:
 - Update OS
@@ -122,7 +138,7 @@ User will be prompted to provide input on following actions after the machines a
   - Create snapshot
 
 ```bash
-./setup.sh -m [job-inputs.yml]
+./setup.sh -b [guest-machines-payload.yml]
 ```
 
 ---
@@ -131,7 +147,7 @@ User will be prompted to provide input on following actions after the machines a
 Run below command for lifecycle management options of the guest machines.
 
 ```bash
-./setup.sh -l [job-inputs.yml]
+./setup.sh -l [guest-machines-payload.yml]
 ```
 
 ---
@@ -158,4 +174,8 @@ additional_kvm_networks:
     end: 192.168.64.254
 ```
 
+**Create Networks:**
+```bash
+./setup.sh -n [custom-resources/openstack-networks.yml]
+```
 ---

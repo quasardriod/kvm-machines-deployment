@@ -19,9 +19,9 @@
       enabled: true
     when: ansible_os_family == "RedHat"
 
-  - name: prepare-kvm | Include tasks/images.yml
-    ansible.builtin.include_tasks: tasks/images.yml
-    when: images|bool
+  # - name: prepare-kvm | Include tasks/images.yml
+  #   ansible.builtin.include_tasks: tasks/images.yml
+  #   when: images|bool
 
   - name: prepare-kvm | Include tasks/networks.yml
     ansible.builtin.include_tasks: tasks/networks.yml

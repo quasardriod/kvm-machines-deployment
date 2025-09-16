@@ -110,9 +110,7 @@
     loop: "{{ kvm_guest_machines | map(attribute='networks') | sum(start=[]) | unique }}"
     when: ansible_os_family == "RedHat"
 
-  - fail:
-
-      # include/build.yml will be called in include/disks.yml after disks are created
+  # include/build.yml will be called in include/disks.yml after disks are created
   - name: kvm-guest | Include include/disks.yml
     ansible.builtin.include_tasks: include/disks.yml
     loop: "{{ kvm_guest_machines }}"

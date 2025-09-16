@@ -29,7 +29,7 @@
 
   - name: lcm | Get the VM already exists on KVM host
     ansible.builtin.shell: |
-      virsh list --all|awk '{print $2}'|egrep -v "^Name|^-|^$"
+      virsh list --all --name
     register: _installed_vms
 
   - name: lcm | Show available VMs on KVM host

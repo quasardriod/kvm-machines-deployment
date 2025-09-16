@@ -1,0 +1,13 @@
+---
+collections:
+- name: ansible.builtin
+- name: community.general
+
+# - name: community.docker
+# - name: community.kubernetes
+# - name: community.vmware
+# - name: amazon.aws
+# - name: azure.azcollection
+# - name: google.cloud
+# - name: community.mysql
+# - name: community.postgresql

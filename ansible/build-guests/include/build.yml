@@ -1,3 +1,4 @@
+# This file is included in include/disks.yml after disks are created
 - name: build | Write out user provide cloud-init user data
   ansible.builtin.copy:
     content: "{{ vm.user_data }}"
@@ -5,16 +6,25 @@
     mode: '0644'
   when: vm.user_data is defined and vm.user_data != ""
 
+- name: build | Set fact network_params for {{ vm.name }}
+  ansible.builtin.set_fact:
+    network_params: >-
+      {% set params = [] %} {% for net in vm.networks %}
+        {% set _ = params.append('--network network=' ~ net ~ ',model=virtio') %}
+      {% endfor %} {{ params | join(' ') }}
+
+- name: build | Show network_params for {{ vm.name }}
+  ansible.builtin.debug:
+    var: network_params
+
 - name: build | Create {{ vm.name }} VM when user data is not defined
   ansible.builtin.shell: |
     virt-install --name {{ vm.name }} \
     --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \
     --boot hd --disk path={{ disk_path }},device=disk,bus=virtio,format=qcow2 \
-    --network network={{ vm.networks[0] }},model=virtio \
+    {{ network_params|trim }} \
     --os-variant {{ build_machine_variant }} \
-    --noautoconsole \
-    # --cloud-init  user-data={{ vm.user_data }} \
-    # --graphics none --console pty,target_type=serial --extra-args 'console=ttyS0,115200n8 serial' --noautoconsole
+    --noautoconsole
   register: vm_create
   when: vm.user_data is not defined or vm.user_data == ""
   async: 600
@@ -25,11 +35,10 @@
     virt-install --name {{ vm.name }} \
     --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \
     --boot hd --disk path={{ disk_path }},device=disk,bus=virtio,format=qcow2 \
-    --network network={{ vm.networks[0] }},model=virtio \
+    {{ network_params|trim }} \
     --os-variant {{ build_machine_variant }} \
     --noautoconsole \
     --cloud-init  user-data=/tmp/{{ vm.name }}-user-data
-    # --graphics none --console pty,target_type=serial --extra-args 'console=ttyS0,115200n8 serial' --noautoconsole
   register: vm_create
   when: vm.user_data is defined or vm.user_data != ""
   async: 600
@@ -41,12 +50,12 @@
 
 - name: build | Get {{ vm.name }} IP address
   ansible.builtin.shell: |
-    virsh domifaddr {{ vm.name }} |awk '/ipv4/{print $4}'|cut -d'/' -f1
+    virsh domifaddr {{ vm.name }} |awk '/ipv4/{print $4}'|head -1 | cut -d'/' -f1
   register: vm_ip
   changed_when: false
   failed_when: vm_ip.rc != 0
 
-- name: build | Wait for {{ vm.name }} to be up
+- name: build | Wait for {{ vm.name }} to reboot and check if SSH is up on {{ vm_ip.stdout }}
   ansible.builtin.wait_for:
     port: 22
     delay: 10

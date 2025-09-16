@@ -8,11 +8,44 @@ cloud_config:
         hashed_passwd: "$6$7sAjjRtHiN/tVCeA$AIWaVIT3O451WZPzpkizAg459OMkmmj4nFRfemIEs2.6Tf3wx2voacQeDb2egYeg4TtzTEmS2Tof0oTKl8nR50"
         shell: /bin/bash
         lock_passwd: false
-        ssh_pwauth: True
-        chpasswd: {expire: False}
         sudo: ['ALL=(ALL) NOPASSWD:ALL']
         ssh-authorized-keys:
           - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    write_files:
+    - path: /etc/ssh/sshd_config.d/60-cloudimg-settings.conf
+      permissions: '0644'
+      content: |
+        # Added by cloud-init
+        # Custom settings for sshd
+        PasswordAuthentication yes
+        PermitRootLogin prohibit-password
+    # Set up networking for all interfaces except 'lo' for Ubuntu 22.04 and later
+    - path: /usr/local/bin/configure-interfaces.sh
+      permissions: '0755'
+      content: |
+        #!/bin/bash
+        # This script will bring up all interfaces except 'lo'
+        cat > /etc/netplan/50-cloud-init.yaml << EOF
+        network:
+          version: 2
+          ethernets:
+        EOF
+        for iface in $(ls /sys/class/net/ | grep -v lo); do
+        cat >> /etc/netplan/50-cloud-init.yaml << EOF
+            $iface:
+              match:
+                macaddress: $(cat /sys/class/net/$iface/address)
+              set-name: $iface
+              dhcp4: true
+              dhcp6: true
+        EOF
+        done
+        netplan apply
+      
+    runcmd:
+    - [ bash, /usr/local/bin/configure-interfaces.sh ]
+    - rm -rf /usr/local/bin/configure-interfaces.sh
+    - chmod 644 /etc/netplan/50-cloud-init.yaml
 
 # Based on networks list, nics will be created in the order of networks list
 kvm_guest_machines:

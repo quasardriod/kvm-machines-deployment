@@ -29,6 +29,17 @@ function pre_checks(){
         echo "ansible-playbook could not be found. Please install Ansible."
         exit 1
     fi
+
+    # Ensure ansible collections are installed
+    if ! ansible-galaxy collection list | grep -q 'community.general'; then
+        echo "Ansible collection community.general not found. Installing..."
+        ansible-galaxy collection install -r scripts/requirements.yml
+        if [ $? -ne 0 ]; then
+            echo "Failed to install Ansible collections. Please check your internet connection and try again."
+            exit 1
+        fi
+    fi
+    
     # Check if the yq command is available
     if ! command -v yq &> /dev/null; then
         echo "yq could not be found. Please install yq."
@@ -100,7 +111,6 @@ function guests_lcm(){
 
     if [ -z $guest_machines_payload ]; then
         set_virsh_connection
-        generate_kvm_host_inventory
 
         [[ -z $1 ]] && echo "Please provide the job-inputs.yml file" && exit 1   
         guest_machines_payload=$1
@@ -163,7 +173,6 @@ function main(){
 
     user_consent
     set_virsh_connection
-    # generate_kvm_host_inventory
 
     # Artifacts location on ansible controller
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
@@ -255,6 +264,14 @@ function main(){
 
     # Always run at last
     show_final_info $build_artifacts
+
+    # Show all IP addresses of the created machines
+    info_y "\nINFO: All IP addresses of the created machines\n"
+    for guest in $(yq eval '.kvm_guest_machines[]|.name' $guest_machines_payload); do
+        info_y "------------- $guest -------------------------\n"
+        $VIRSH_CMD domifaddr $guest
+        info_y "\n------------------------------------------------\n"
+    done
 }
 
 function kvm_host_capabilities(){
@@ -334,19 +351,22 @@ function additional_kvm_networks(){
 
 usage(){
 	echo
-    echo "Usage: $0 [options]"
+    info_y "\nAnsible based scripts to prepare KVM host, build and manage KVM guest machines.\n"
+    echo "Usage: $0 [options] [arguments]"
     echo "Options:"
-    echo " -p                    Prepare KVM Host"
-    echo " -b [job-inputs.yml]   Build and Configure KVM guests, required: [job-inputs.yml]"
-    echo " -i                    List available images and properties"
-    echo " -l [job-inputs.yml]   Life-cycle Management of KVM guests, required: [job-inputs.yml]"
-	echo " -h                    help, this message"
-    echo " -n [network.yml]      Create additional networks on KVM host"
+    echo "-------------------------------------"
+    echo " -g           Generate KVM host inventory based on LIBVIRT_DEFAULT_URI"
+    echo " -p           Prepare KVM Host"
+    echo " -b [argv]    Build and Configure KVM guests. Required: [guest-machines-payload.yml]"
+    echo " -i           List available images and properties"
+    echo " -l [argv]    Life-cycle Management of KVM guests. Required: [guest-machines-payload.yml]"
+	echo " -h           help, this message"
+    echo " -n [argv]    Create additional networks on KVM host. Optional: [additional-networks.yml]"
 	echo
 	exit 0
 }
 
-while getopts 'ihpl:b:n:' opt; do
+while getopts 'ihgpl:b:n:' opt; do
     case $opt in
         b) 
             if [ -z "$OPTARG" ]; then
@@ -356,6 +376,7 @@ while getopts 'ihpl:b:n:' opt; do
             fi
             main "$OPTARG"
             ;;
+        g) generate_kvm_host_inventory;;
         n) 
             if [ -z "$OPTARG" ]; then
                 echo "Error: -n requires an argument."
