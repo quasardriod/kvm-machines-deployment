@@ -14,26 +14,17 @@ cloud_config:
         ssh-authorized-keys:
           - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
+# Based on networks list, nics will be created in the order of networks list
 kvm_guest_machines:
-- name: k8s-master
-  variant: centos-stream9
-  cloud_image: ""
-  vcpu: 4
-  ram: 4096
-  disk_size: 30
-  nic: 1
-  networks:
-  - default
-  cloud_user: "{{ cloud_config.cloud_user }}"
-  user_data: "{{ cloud_config.user_data }}"
-- name: k8s-worker
-  variant: centos-stream9
+- name: ubuntu-test
+  variant: ubuntu24.04
   cloud_image: ""
   vcpu: 1
   ram: 1024
-  disk_size: 20
-  nic: 1
+  disk_size: 10
   networks:
   - default
+  - dataplane
+  - external
   cloud_user: "{{ cloud_config.cloud_user }}"
   user_data: "{{ cloud_config.user_data }}"

@@ -7,7 +7,7 @@ source scripts/constant.sh
 
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
-local_kvm_host_inventory="inventory/kvm-local"
+local_kvm_host_inventory="inventory/kvm-local.yml"
 
 function set_virsh(){
     if [ -z $LIBVIRT_DEFAULT_URI ]; then
@@ -65,6 +65,9 @@ function show_final_info(){
 }
 
 function update_guest_os(){
+    # Guest machines inventory file created as build artifacts
+    # Check machine_artifacts in all.yml for location
+
     configure_pb="ansible/configure-guests/pb-configure-guest.yml"
     inventory_artifact=$(find $build_artifacts -name guests-inventory-*.yml | head -n 1)
 
@@ -160,7 +163,7 @@ function main(){
 
     user_consent
     set_virsh_connection
-    generate_kvm_host_inventory
+    # generate_kvm_host_inventory
 
     # Artifacts location on ansible controller
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
@@ -185,17 +188,10 @@ function main(){
             exit 1
         fi
 
-        # Call playbook to start building machines
-        
-        echo "local_kvm_host_inventory: $local_kvm_host_inventory"
-        echo "build_pb: $build_pb"
-        echo "guest_machines_payload: $guest_machines_payload"
-        echo "default_vars_override_option: $default_vars_override_option"
-        echo "build_artifacts: $build_artifacts"
-        exit 0
+        # Call playbook to start building machines        
         ansible-playbook -i $local_kvm_host_inventory $build_pb \
         -e @$guest_machines_payload $default_vars_override_option \
-        -e build_artifacts=$build_artifacts -vvvv
+        -e build_artifacts=$build_artifacts
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
@@ -203,9 +199,7 @@ function main(){
         fi
 
         # For now guest OS update supported only when VMs built on local KVM host
-        if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-            update_guest_os
-        fi
+        update_guest_os
 
         # Prompt user to take a snapshot of the new machine
         read -p "Do you want to take a snapshot of the newly created machines? [y/N]: " take_snapshot

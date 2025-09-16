@@ -3,6 +3,7 @@
 - [QEMU Connection](#qemu-connection)
   - [*Set QEMU for local KVM host*](#set-qemu-for-local-kvm-host)
   - [*Set QEMU to connect to a remote KVM host*](#set-qemu-to-connect-to-a-remote-kvm-host)
+  - [Prepare KVM Host Inventory](#prepare-kvm-host-inventory)
 - [Create Guest Machines Input File](#create-guest-machines-input-file)
 - [Tool Kit](#tool-kit)
 - [View KVM Host Capabilities](#view-kvm-host-capabilities)
@@ -41,6 +42,46 @@ Review [qumu-connect](./docs/qemu-connect.md) for detailed information on `virsh
 export LIBVIRT_DEFAULT_URI=qemu+ssh://root@[hostname/IP]/system
 ```
 
+### Prepare KVM Host Inventory
+**For Local KVM host**
+```bash
+$cat inventory/kvm-local.yml 
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_user: <current user>
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.12
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_user: root
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_extra_args: '-o StrictHostKeyChecking=no'
+```
+
+**For Remote KVM host**
+```bash
+$ cat inventory/kvm-remote.yml 
+all:
+  hosts:
+    remote-kvm-host:
+      ansible_host: 192.168.100.108
+      ansible_user: root
+      ansible_connection: ssh
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.12
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_user: root
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    ansible_ssh_extra_args: '-o StrictHostKeyChecking=no'
+  children:
+    kvm_hosts:
+      hosts:
+        remote-kvm-host:
+
+```
 ---
 
 ## Create Guest Machines Input File
