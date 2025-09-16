@@ -170,8 +170,7 @@ function guests_lcm(){
 function main(){
     guest_machines_payload=$1
     [ ! -f $guest_machines_payload ] && echo "File $guest_machines_payload not found" && exit 1
-
-    user_consent
+    
     set_virsh_connection
 
     # Artifacts location on ansible controller
@@ -188,14 +187,15 @@ function main(){
     info_y "Build artifacts on KVM host: $(yq .kvm_artifacts_dir inventory/group_vars/all.yml)\n"
 
     build_pb="ansible/build-guests/pb-build-guest.yml"
-   
-    
+      
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
 
         if [ ! -f $local_kvm_host_inventory ]; then
             error "\nERROR: $local_kvm_host_inventory not found\n"
             exit 1
         fi
+        
+        user_consent $local_kvm_host_inventory localhost
 
         # Call playbook to start building machines        
         ansible-playbook -i $local_kvm_host_inventory $build_pb \

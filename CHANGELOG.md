@@ -6,4 +6,5 @@
 - Add multiple interfaces in guest machine during image build.
 - Improved cloud-init implementation to configure dhcp ips on all interfaces.
 - Improved cloud-init to configure sshd config.
+- Fixed user consent for images location.
 - FIX ME: Generate inventory using `./setup.sh -g` option.
