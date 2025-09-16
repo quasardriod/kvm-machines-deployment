@@ -4,6 +4,11 @@ all:
       ansible_host: 192.168.100.108
       ansible_user: root
       ansible_connection: ssh
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.12
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_user: root
   children:
     kvm_hosts:
       hosts:

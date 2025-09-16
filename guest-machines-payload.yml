@@ -16,8 +16,6 @@ cloud_config:
 
 kvm_guest_machines:
 - name: k8s-master
-  build_type: kubernetes
-  node_role: master
   variant: centos-stream9
   cloud_image: ""
   vcpu: 4
@@ -29,8 +27,6 @@ kvm_guest_machines:
   cloud_user: "{{ cloud_config.cloud_user }}"
   user_data: "{{ cloud_config.user_data }}"
 - name: k8s-worker
-  build_type: kubernetes
-  node_role: worker
   variant: centos-stream9
   cloud_image: ""
   vcpu: 1

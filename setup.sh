@@ -7,7 +7,7 @@ source scripts/constant.sh
 
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
-local_kvm_host_inventory="inventory/kvm-local.yml"
+local_kvm_host_inventory="inventory/kvm-local"
 
 function set_virsh(){
     if [ -z $LIBVIRT_DEFAULT_URI ]; then
@@ -49,13 +49,13 @@ function prepare_kvm_host(){
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
         ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
-        $default_vars_override_option -b 
+        $default_vars_override_option
     fi
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         remote_kvm
         ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
-        $default_vars_override_option -b
+        $default_vars_override_option
     fi
 }
 
@@ -95,18 +95,18 @@ function guests_lcm(){
     declare -a operations=("Snapshot" "Revert" "Delete" "Start" "Stop" "Pause" "Unpause" "Shutdown")
     lcm_pb="ansible/guests-lcm/lifecycle-management.yml"
 
-    if [ -z $job_inputs_file ]; then
+    if [ -z $guest_machines_payload ]; then
         set_virsh_connection
         generate_kvm_host_inventory
 
         [[ -z $1 ]] && echo "Please provide the job-inputs.yml file" && exit 1   
-        job_inputs_file=$1
-        [ ! -f $job_inputs_file ] && echo "File $job_inputs_file not found" && exit 1
+        guest_machines_payload=$1
+        [ ! -f $guest_machines_payload ] && echo "File $guest_machines_payload not found" && exit 1
     fi
 
     info "\nINFO: Following VMs will be managed:\n"
     info "------------------------------------------------\n"
-    yq eval '.kvm_guest_machines[]|.name' $job_inputs_file
+    yq eval '.kvm_guest_machines[]|.name' $guest_machines_payload
     info "\n------------------------------------------------\n"
     
     if [ -z $operation ];then
@@ -140,14 +140,13 @@ function guests_lcm(){
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
         ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
-        -e @$job_inputs_file -e operation=${operation,,} $default_vars_override_option \
-        -b
+        -e @$guest_machines_payload -e operation=${operation,,} $default_vars_override_option
         
         [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
     fi
     
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        ansible-playbook -i $remote_kvm_host_inventory $build_pb -e @$job_inputs_file \
+        ansible-playbook -i $remote_kvm_host_inventory $build_pb -e @$guest_machines_payload \
         -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,} \
         $default_vars_override_option
 
@@ -156,9 +155,9 @@ function guests_lcm(){
 }
 
 function main(){
-    guest_machines_input=$1
-    [ ! -f $guest_machines_input ] && echo "File $guest_machines_input not found" && exit 1
-    
+    guest_machines_payload=$1
+    [ ! -f $guest_machines_payload ] && echo "File $guest_machines_payload not found" && exit 1
+
     user_consent
     set_virsh_connection
     generate_kvm_host_inventory
@@ -187,9 +186,16 @@ function main(){
         fi
 
         # Call playbook to start building machines
+        
+        echo "local_kvm_host_inventory: $local_kvm_host_inventory"
+        echo "build_pb: $build_pb"
+        echo "guest_machines_payload: $guest_machines_payload"
+        echo "default_vars_override_option: $default_vars_override_option"
+        echo "build_artifacts: $build_artifacts"
+        exit 0
         ansible-playbook -i $local_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file $default_vars_override_option \
-        -e build_artifacts=$build_artifacts
+        -e @$guest_machines_payload $default_vars_override_option \
+        -e build_artifacts=$build_artifacts -vvvv
 
         if [ $? -ne 0 ]; then
             error "\nERROR: Failed to build machines\n"
@@ -229,7 +235,7 @@ function main(){
         fi
 
         ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$job_inputs_file -e "build_artifacts=$build_artifacts" \
+        -e @$guest_machines_payload -e "build_artifacts=$build_artifacts" \
         $default_vars_override_option
 
         if [ $? -ne 0 ]; then
@@ -322,13 +328,13 @@ function additional_kvm_networks(){
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
         ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
-        $default_vars_override_option -e @$network_file -e networks=true -e images=false -b 
+        $default_vars_override_option -e @$network_file -e networks=true -e images=false
     fi
 
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
         remote_kvm
         ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
-        $default_vars_override_option -b
+        $default_vars_override_option
     fi
 }
 
