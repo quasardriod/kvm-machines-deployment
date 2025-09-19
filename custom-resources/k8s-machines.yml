@@ -1,0 +1,67 @@
+# Ensure cloud_user is matched with the one in cloud_config.user_data
+cloud_config:
+  cloud_user: cloud-user
+  user_data: |+
+    #cloud-config
+    users:
+      - name: cloud-user
+        hashed_passwd: "$6$7sAjjRtHiN/tVCeA$AIWaVIT3O451WZPzpkizAg459OMkmmj4nFRfemIEs2.6Tf3wx2voacQeDb2egYeg4TtzTEmS2Tof0oTKl8nR50"
+        shell: /bin/bash
+        lock_passwd: false
+        chpasswd: {expire: False}
+        sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        ssh-authorized-keys:
+          - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    write_files:
+    - path: /usr/local/bin/configure-ssh.sh
+      permissions: '0700'
+      content: |
+        #!/bin/bash
+        # This script will enable password authentication and permit root login via SSH
+        echo "Configuring SSH settings"
+        if egrep -q "centos|rocky|redhat" /etc/os-release;then
+          echo "Running on CentOS/Rocky/RedHat"
+          cat > /etc/ssh/sshd_config.d/50-cloud-init.conf << EOF
+        # Added by cloud-init
+        # Custom settings for sshd
+        PasswordAuthentication yes
+        PermitRootLogin prohibit-password
+        EOF
+        systemctl restart sshd
+        elif egrep -q "ubuntu" /etc/os-release;then
+          echo "Running on Ubuntu"
+          cat > /etc/ssh/sshd_config.d/60-cloudimg-settings.conf << EOF
+        # Added by cloud-init
+        # Custom settings for sshd
+        PasswordAuthentication yes
+        PermitRootLogin prohibit-password
+        EOF
+        systemctl restart ssh
+        else
+          echo "Not a supported OS"
+        fi
+    runcmd:
+    - [ bash, /usr/local/bin/configure-ssh.sh ]
+    - rm -rf /usr/local/bin/configure-ssh.sh
+          
+kvm_guest_machines:
+- name: k8s-master
+  variant: centos-stream9
+  cloud_image: ""
+  vcpu: 4
+  ram: 4096
+  disk_size: 30
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"
+- name: k8s-worker
+  variant: centos-stream9
+  cloud_image: ""
+  vcpu: 2
+  ram: 2048
+  disk_size: 30
+  networks:
+  - default
+  cloud_user: "{{ cloud_config.cloud_user }}"
+  user_data: "{{ cloud_config.user_data }}"

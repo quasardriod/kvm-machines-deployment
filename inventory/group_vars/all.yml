@@ -15,10 +15,10 @@ cloud_images:
   download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
   images:
   - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
-# - variant: centos-stream9
-#   download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
-#   images:
-#   - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
+- variant: centos-stream9
+  download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
+  images:
+  - CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
 # - variant: ubuntu22.04
 #   download_uri: "https://cloud-images.ubuntu.com/jammy/current/"
 #   images:

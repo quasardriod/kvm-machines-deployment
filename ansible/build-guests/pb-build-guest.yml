@@ -42,6 +42,7 @@
       fail_msg:
       - "The variant '{{ item }}' is not available on the host or not supported"
       - "Supported variants are: {{ VARIANTS }}"
+      - "Review 'cloud_images' and 'VARIANTS' in inventory/group_vars/all.yml for more details."
       success_msg: "The variant '{{ item }}' is available on the host or not supported"
     loop: "{{ user_machine_variants }}"
 
