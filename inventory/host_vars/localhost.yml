@@ -1,0 +1,2 @@
+IMAGE_TEMPLATE_STORE: "/vms/artifactory"
+IMAGES_STORE: "/vms"

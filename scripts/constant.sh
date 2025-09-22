@@ -210,7 +210,7 @@ function user_consent(){
     # Get Image store related properties
     ansible-inventory -i $inventory_file --host $ansible_host | grep -E "IMAGES_STORE|IMAGE_TEMPLATE_STORE"
 
-    info_y "NOTE: Use ansible inventory to overwrite default location.\n"
+    info_y "NOTE: Use ansible host_vars method to overwrite default location.\n"
 
     pause
 }
