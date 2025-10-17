@@ -1,0 +1,72 @@
+---
+- name: Install KVM packages and setup KVM host
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  vars:
+    guest_images: "/var/lib/libvirt/images"
+    image_artifactory: "/var/lib/libvirt/images/artifactory"
+    kvm_packages:
+      - bash-completion
+      - qemu-kvm
+      - virt-install
+      - virt-viewer
+      - libvirt
+      - virt-top
+      - libguestfs-tools
+      - dmidecode
+      - net-tools
+      - vim
+      - guestfs-tools
+      # - epel-release
+      # - epel-next-release
+      # - wget
+
+  tasks:
+    - name: Install KVM related packages on RedHat Based systems
+      ansible.builtin.dnf:
+        name: "{{ kvm_packages }}"
+      when: ansible_os_family == "RedHat"
+
+    - name: Start libvirtd
+      ansible.builtin.systemd:
+        name: libvirtd
+        state: started
+        enabled: true
+
+    - name: Create image store directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0755'
+        state: directory
+        owner: root
+        group: root
+      with_items:
+        - "{{ guest_images }}"
+        - "{{ image_artifactory }}"
+
+    - name: Check if kvm module is loaded
+      ansible.builtin.command: modinfo kvm
+      ignore_errors: true
+      register: _kvm_mod
+      changed_when: false
+
+    - name: Load kvm module
+      community.general.modprobe:
+        name: kvm
+      when: _kvm_mod.rc != 0
+
+    - name: Run virt-host-validate
+      ansible.builtin.command: virt-host-validate
+      register: _virt_validate
+      ignore_errors: true
+      changed_when: false
+
+    - name: Run assert
+      ansible.builtin.assert:
+        that:
+          - not _virt_validate.stdout_lines is search('FAIL')
+        fail_msg:
+          - "'virt-host-validate' validation failed"

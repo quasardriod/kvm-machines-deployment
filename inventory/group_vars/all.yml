@@ -4,7 +4,7 @@ root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"
 
 # Variables to define KVM host properties
 IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
-IMAGES_STORE: "/var/lib/libvirt/images"
+IMAGES_STORE: "/vms"
 
 # virt-install --os-variant list ... output should contain these variants
 cloud_images:

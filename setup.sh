@@ -2,6 +2,7 @@
 
 # set -eo pipefail
 # User provided yaml file to overwrite IMAGE_STORE location
+
 default_vars_override_option=""
 source scripts/constant.sh
 
@@ -31,7 +32,7 @@ function pre_checks(){
     fi
 
     # Ensure ansible collections are installed
-    if ! ansible-galaxy collection list | grep -q 'community.general'; then
+    if ! ansible-galaxy collection list | grep 'community.general' > /dev/null; then
         echo "Ansible collection community.general not found. Installing..."
         for collection in $(yq eval '.collections[]|.name' scripts/requirements.yml);do
             ansible-galaxy collection install $collection
@@ -358,6 +359,7 @@ usage(){
     echo "Options:"
     echo "-------------------------------------"
     echo " -g           Generate KVM host inventory based on LIBVIRT_DEFAULT_URI"
+    echo " -k           Install KVM Host dependencies"
     echo " -p           Prepare KVM Host"
     echo " -b [argv]    Build and Configure KVM guests. Required: [guest-machines-payload.yml]"
     echo " -i           List available images and properties"
@@ -368,7 +370,7 @@ usage(){
 	exit 0
 }
 
-while getopts 'ihgpl:b:n:' opt; do
+while getopts 'ihgkpl:b:n:' opt; do
     case $opt in
         b) 
             if [ -z "$OPTARG" ]; then
@@ -398,6 +400,7 @@ while getopts 'ihgpl:b:n:' opt; do
             fi
             guests_lcm "$OPTARG"
             ;;
+        k) install_kvm_host_dependencies;;
         \?|*) 
             echo "Invalid Option: -$opt"
             usage

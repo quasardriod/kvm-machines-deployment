@@ -214,3 +214,13 @@ function user_consent(){
 
     pause
 }
+
+function install_kvm_host_dependencies(){
+    info_y "\nINFO: Installing KVM host dependencies...\n"
+    ansible-playbook ansible/hypervisor/install-kvm.yml
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: KVM host dependencies installation failed.\n"
+        exit 1
+    fi
+    success "\nSUCCESS: KVM host dependencies installed successfully.\n"
+}

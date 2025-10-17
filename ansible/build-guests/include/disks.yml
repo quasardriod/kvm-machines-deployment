@@ -59,13 +59,21 @@
     ansible.builtin.set_fact:
       disk_size: "{{ vm.disk_size if (vm.disk_size is defined and vm.disk_size != '') else 10 }}"
 
-  - name: disks | Create empty {{ disk_path }}
+  - name: disks | Copy {{ build_image }} to {{ disk_path }}
     ansible.builtin.command: >
-      qemu-img create -f qcow2 -o preallocation=metadata {{ disk_path }} {{ disk_size }}G
+      cp -a {{ IMAGE_TEMPLATE_STORE }}/{{ build_image }} {{ disk_path }}
 
-  - name: disks | Copy {{ build_image }} to {{ disk_path }} using virt-resize
+  - name: disks | Expand {{ disk_path }} using qemu-img resize
     ansible.builtin.command: >
-      virt-resize --expand /dev/sda1 {{ IMAGE_TEMPLATE_STORE }}/{{ build_image }} {{ disk_path }}
+      qemu-img resize {{ disk_path }} {{ disk_size }}G
+
+  # - name: disks | Create empty {{ disk_path }}
+  #   ansible.builtin.command: >
+  #     qemu-img create -f qcow2 -o preallocation=metadata {{ disk_path }} {{ disk_size }}G
+
+  # - name: disks | Copy {{ build_image }} to {{ disk_path }} using virt-resize
+  #   ansible.builtin.command: >
+  #     virt-resize --expand /dev/sda1 {{ IMAGE_TEMPLATE_STORE }}/{{ build_image }} {{ disk_path }}
 
   - name: disks | Get {{ disk_path }} properties
     ansible.builtin.command: >
@@ -77,16 +85,16 @@
     ansible.builtin.debug:
       var: disk_info.stdout_lines
 
-  - name: disks | Get {{ disk_path }} Filesystem Expansion status
-    ansible.builtin.command: >
-      virt-filesystems --long -h -a {{ disk_path }} 
-    register: disk_fs
-    changed_when: false
+  # - name: disks | Get {{ disk_path }} Filesystem Expansion status
+  #   ansible.builtin.command: >
+  #     virt-filesystems --long -h -a {{ disk_path }} 
+  #   register: disk_fs
+  #   changed_when: false
 
-  - name: disks | Show {{ disk_path }} Filesystem Expansion status
-    ansible.builtin.debug:
-      var: disk_fs.stdout_lines
-  when: build_machine_variant|lower is search("centos|rocky")
+  # - name: disks | Show {{ disk_path }} Filesystem Expansion status
+  #   ansible.builtin.debug:
+  #     var: disk_fs.stdout_lines
+  # when: build_machine_variant|lower is search("centos|rocky")
 
 # TO Be improved further
 # For Ubuntu OS images, below method works

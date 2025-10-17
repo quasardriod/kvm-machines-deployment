@@ -1,0 +1,9 @@
+- name: create-network | Show network to be deleted
+  ansible.builtin.debug:
+    var: _network
+
+- name: create-network | Destroy the {{ _network.name }} network if active
+  ansible.builtin.command: "virsh net-destroy {{ _network.name }}"
+
+- name: create-network | Undefine the {{ _network.name }} network
+  ansible.builtin.command: "virsh net-undefine {{ _network.name }}"
