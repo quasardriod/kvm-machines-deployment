@@ -48,17 +48,19 @@
 
 - name: networks | Set fact delete_default_network
   ansible.builtin.set_fact:
-    delete_default_network: true|default(false)
+    delete_default_network: true
   when:
   - ansible_os_family == "RedHat"
-  - default_network_properties_check.failed
+  - default_network_properties_check is not skipped
+  - "'failed' in default_network_properties_check"
+
 - name: networks | Delete default network if properties do not match expected values
   ansible.builtin.include_tasks: include/delete-network.yml
   vars:
     _network: "{{ KVM_NETWORKS[0] }}"
   when:
   - ansible_os_family == "RedHat"
-  - default_network_properties_check.failed
+  - delete_default_network|bool
 
 - name: networks | Ensure additional_kvm_networks properties are not same as default network bridge
   ansible.builtin.assert:

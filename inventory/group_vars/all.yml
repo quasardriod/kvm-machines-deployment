@@ -4,14 +4,14 @@ root_pub_key_on_localhost: "{{ pub_key_on_localhost }}"
 
 # Variables to define KVM host properties
 IMAGE_TEMPLATE_STORE: "/var/lib/libvirt/images/artifactory"
-IMAGES_STORE: "/vms"
+IMAGES_STORE: "/var/lib/libvirt/images"
 
 # virt-install --os-variant list ... output should contain these variants
 cloud_images:
-- variant: rocky9
-  download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
-  images:
-  - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
+# - variant: rocky9
+#   download_uri: "https://dl.rockylinux.org/pub/rocky/9/images/x86_64"
+#   images:
+#   - Rocky-9-GenericCloud-LVM.latest.x86_64.qcow2
 - variant: centos-stream9
   download_uri: "https://cloud.centos.org/altarch/9-stream/x86_64/images"
   images:
@@ -20,10 +20,10 @@ cloud_images:
 #   download_uri: "https://cloud-images.ubuntu.com/jammy/current/"
 #   images:
 #   - jammy-server-cloudimg-amd64.img
-- variant: ubuntu24.04
-  download_uri: "https://cloud-images.ubuntu.com/noble/current/"
-  images:
-  - noble-server-cloudimg-amd64.img
+# - variant: ubuntu24.04
+#   download_uri: "https://cloud-images.ubuntu.com/noble/current/"
+#   images:
+#   - noble-server-cloudimg-amd64.img
 
 VARIANTS: "{{ cloud_images | map(attribute='variant') | list }}"
 

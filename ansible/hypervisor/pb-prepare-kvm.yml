@@ -10,6 +10,7 @@
     # Also provide control on re-running the playbook for only one of these tasks by setup.sh
     networks: true
     images: true
+    delete_default_network: false
 
   tasks:
   - name: prepare-kvm | Ensure libvirtd is running
