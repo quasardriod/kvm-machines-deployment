@@ -3,60 +3,35 @@
 # set -eo pipefail
 # User provided yaml file to overwrite IMAGE_STORE location
 
+# set -x
 default_vars_override_option=""
+source scripts/formatter.sh
 source scripts/constant.sh
+source scripts/assert.sh
 
 # Vars for remote KVM host
 remote_kvm_host_inventory="inventory/kvm-remote.yml"
 local_kvm_host_inventory="inventory/kvm-local.yml"
 
-function set_virsh(){
-    if [ -z $LIBVIRT_DEFAULT_URI ]; then
-        echo "Please set LIBVIRT_DEFAULT_URI environment variable"
-        exit 1
-    fi
 
-    VIRSH_CMD="virsh --connect $LIBVIRT_DEFAULT_URI"
-}
 function pre_checks(){
-    # Ensure python3.12 is installed
-    if ! command -v python3.12 &> /dev/null; then
-        echo "python3.12 could not be found. Please install python3.12."
-        exit 1
-    fi
-
-    # Check if the ansible-playbook command is available
-    if ! command -v ansible-playbook &> /dev/null; then
-        echo "ansible-playbook could not be found. Please install Ansible."
-        exit 1
-    fi
-
-    # Ensure ansible collections are installed
-    if ! ansible-galaxy collection list | grep 'community.general' > /dev/null; then
-        echo "Ansible collection community.general not found. Installing..."
-        for collection in $(yq eval '.collections[]|.name' scripts/requirements.yml);do
-            ansible-galaxy collection install $collection
-            if [ $? -ne 0 ]; then
-                echo "Failed to install Ansible collections. Please check your internet connection and try again."
-                exit 1
-            fi
-        done
-    fi
-    
-    # Check if the yq command is available
-    if ! command -v yq &> /dev/null; then
-        echo "yq could not be found. Please install yq."
-        exit 1
-    fi
-    # Check if the ssh-keygen command is available
-    if ! command -v ssh-keygen &> /dev/null; then
-        echo "ssh-keygen could not be found. Please install OpenSSH."
-        exit 1
-    fi
+    assert_python3_installed
+    assert_ansible_core
+    assert_yq_installed
+    assert_ansible_collections
+    assert_ssh_keygen_installed
+    assert_virsh_installed
+    assert_libvirt_uri_connection
+    set_virsh_cli
 }
 
 # Run pre-checks
-pre_checks
+if [[ ! " $@ " =~ " -h" ]] || [[ ! " $@ " =~ " --help" ]]; then
+    pre_checks
+elif [[ ! " $@ " =~ " -k" ]]; then
+    pre_checks
+    assert_remote_kvm_for_virsh
+fi
 
 function prepare_kvm_host(){
     set_virsh_connection

@@ -5,65 +5,154 @@
 # set -o pipefail: This option causes a pipeline to return the exit status of the last command in the pipeline that failed, or zero if no command failed.
 # set -eo pipefail
 
-
-##### Block to color message output
-# Color variables
-red='\033[0;31m'
-green='\033[0;32m'
-yellow='\033[0;33m'
-blue='\033[0;34m'
-magenta='\033[0;35m'
-cyan='\033[0;36m'
-# Clear the color after that
-clear='\033[0m'
-
-function info(){
-    printf "${cyan}$1${clear}"
-}
-
-function error(){
-    printf "${red}$1${clear}"
-}
-
-function success(){
-    printf "${green}$1${clear}"
-}
-
-function filtered_data(){
-    printf "${magenta}$1${clear}"
-}
-
-function info_y(){
-    printf "${yellow}$1${clear}"
-}
-#########
+libvirt_default_uri_file=/tmp/libvirt_default_uri.txt
+tmp_inventory_file=/tmp/kvm-host-inventory.ini
+inventory_file=inventory/kvm-host-inventory.ini
 
 function pause(){
     echo
-    read -p "Continue [Y/n]: " pause_response
+    read -p "Enter to continue or Ctrl+C to cancel: " dummy_variable
+}
+
+function install_virsh(){
+    info_y "\nINFO: Installing libvirt on the system...\n"
     
-    if [[ ${pause_response,,} == "n" ]] || [[ ${pause_response,,} == "no" ]];then
-        info_y "\nBye...\n"
-        exit 2
-    elif [[ ${pause_response,,} == "y" ]] || [[ ${pause_response,,} == "yes" ]] || [[ -z $pause_response ]];then
-        info_y "\nContinue...\n"
+    if command -v apt &> /dev/null; then
+        sudo apt update
+        sudo apt install -y libvirt-clients libvirt-daemon-system
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y libvirt
     else
-        error "\nERROR: Wrong input...\n"
+        error "\nERROR: Unsupported package manager. Please install libvirt manually.\n"
         exit 1
     fi
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: libvirt installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: libvirt installed successfully.\n"
+}
+
+function install_python3(){
+    info_y "\nINFO: Installing python3 and python3-pip on the system...\n"
+    
+    if command -v apt &> /dev/null; then
+        sudo apt update
+        sudo apt install -y python3 python3-pip
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y python3 python3-pip
+    else
+        error "\nERROR: Unsupported package manager. Please install python3 and python3-pip manually.\n"
+        exit 1
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: Python3 and pip installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: Python3 and pip installed successfully.\n"
+}
+
+function install_ansible_userspace(){
+    info_y "\nINFO: Installing Ansible using pip...\n"
+    
+    pip3 install --user ansible
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: Ansible installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: Ansible installed successfully.\n"
+}
+
+function install_ansible(){
+    info_y "\nINFO: Installing Ansible on the system...\n"
+    
+    if command -v apt &> /dev/null; then
+        sudo apt update
+        sudo apt install -y ansible-core
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y ansible-core
+    else
+        error "\nERROR: Unsupported package manager. Please install Ansible manually.\n"
+        exit 1
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: Ansible installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: Ansible installed successfully.\n"
+}
+
+function install_yq(){
+    info_y "\nINFO: Installing yq on the system...\n"
+    
+    if command -v apt &> /dev/null; then
+        sudo apt update
+        sudo apt install -y yq
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y yq
+    else
+        error "\nERROR: Unsupported package manager. Please install yq manually.\n"
+        exit 1
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: yq installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: yq installed successfully.\n"
+}
+
+function install_openssh(){
+    info_y "\nINFO: Installing OpenSSH on the system...\n"
+    
+    if command -v apt &> /dev/null; then
+        sudo apt update
+        sudo apt install -y openssh-client
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y openssh-clients
+    else
+        error "\nERROR: Unsupported package manager. Please install OpenSSH manually.\n"
+        exit 1
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: OpenSSH installation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: OpenSSH installed successfully.\n"
+}
+
+function allow_passwordless_sudo_for_virsh(){
+    local user_name=$1
+
+    info_y "\nINFO: Allowing passwordless sudo for user: $user_name to run virsh command...\n"
+    info_y "------------------------------------------------\n"
+    info_y "Adding the following line to /etc/sudoers.d/90-$user_name-virsh:\n"
+    info_y "$user_name ALL=(ALL) NOPASSWD: /usr/bin/virsh\n"
+    pause
 }
 
 # Configure virsh connection
 function set_virsh_connection(){
     # Check if libvirt is installed
-    if ! command -v virsh &> /dev/null; then
-        error "libvirt is not installed. Please install it first.\n"
-        exit 1
+    if [ ! -f $libvirt_default_uri_file ]; then
+        info_y "\nINFO: libvirt_default_uri_file not found.\n"
+    else
+        info_y "\nINFO: Reading LIBVIRT_DEFAULT_URI from $libvirt_default_uri_file\n"
+        export LIBVIRT_DEFAULT_URI=$(cat $libvirt_default_uri_file)
     fi
 
     if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
-        error "\nERROR: 'LIBVIRT_DEFAULT_URI' is not exported for QEMU connection.\n"
-
         read -r -p "Do you wish to set it now? [y/N]: " consent
         if [[ ${consent,,} == "y" ]] || [[ ${consent,,} == "yes" ]];then
             info_y "\nINFO: Please provide the QEMU connection string:\n"
@@ -73,7 +162,9 @@ function set_virsh_connection(){
             info_y "------------------------------------------------\n"
             read -p "LIBVIRT_DEFAULT_URI: " LIBVIRT_DEFAULT_URI
             
-            export LIBVIRT_DEFAULT_URI=$LIBVIRT_DEFAULT_URI
+            echo $LIBVIRT_DEFAULT_URI > $libvirt_default_uri_file
+            export LIBVIRT_DEFAULT_URI=$(cat $libvirt_default_uri_file)
+
             if [[ -z $LIBVIRT_DEFAULT_URI ]]; then
                 error "\nERROR: 'LIBVIRT_DEFAULT_URI' is not set, please set it and re-run the script.\n"
                 exit 1
@@ -120,83 +211,93 @@ function set_virsh_connection(){
         fi
     fi
 
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/(root|[a-zA-Z0-9]+)@.+\/system ]]; then
         # Run block when kvm connection to remote machine
         # Check if the user has passwordless sudo privileges for virsh
-        if ! sudo virsh list &> /dev/null; then
-            error "You do not have passwordless sudo privileges for virsh. Please run the script as a user with passwordless sudo privileges for virsh.\n"
-            exit 1
-        fi
-        export VIRSH_CMD="virsh"     
+        assert_remote_kvm_for_ssh
+        export VIRSH_CMD="virsh --connect $LIBVIRT_DEFAULT_URI"
     fi
     info_y "INFO: Using virsh command: $VIRSH_CMD\n"
 }
 
+function create_ssh_keygen(){
+    info_y "\nINFO: Generating SSH key pair for passwordless SSH access to remote KVM host...\n"
+    
+    ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -q -N ""
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: SSH key pair generation failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: SSH key pair generated successfully.\n"
+}
+
+function copy_rsa_ssh_key_to_remote_kvm(){
+    local remote_user=$1
+    local remote_host=$2
+
+    info_y "\nINFO: Copying SSH public key to remote KVM host: $remote_user@$remote_host\n"
+    pause
+    
+    ssh-copy-id -i ~/.ssh/id_rsa.pub "$remote_user@$remote_host"
+
+    if [[ $? -ne 0 ]]; then
+        error "\nERROR: Copying SSH public key to remote KVM host failed.\n"
+        exit 1
+    fi
+
+    success "\nSUCCESS: SSH public key copied to remote KVM host successfully.\n"
+}
+
 # Generate ansible inventory for remote KVM host on the fly
 function generate_kvm_host_inventory(){
-    echo "FIXME" && exit 1
     # https://www.bashsupport.com/bash/variables/bash_rematch/
 
     # Generate inventory from remote QEMU connection LIBVIRT_DEFAULT_URI
     if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh://([^@]+)@([^/]+)/system$ ]]; then
 
         info_y "\nINFO: Generating ansible inventory for remote KVM host: $LIBVIRT_DEFAULT_URI\n"
-        remote_user="${BASH_REMATCH[1]}"
-        remote_host="${BASH_REMATCH[2]}"
-
-cat <<EOF > $remote_kvm_host_inventory
-all:
-  hosts:
-    remote-kvm-host:
-      ansible_host: $remote_host
-      ansible_user: $remote_user
-      ansible_connection: ssh
-  children:
-    kvm_hosts:
-      hosts:
-        remote-kvm-host
-EOF
-
-        if [[ $? -ne 0 ]]; then
-            echo "Error: Failed to create Ansible inventory file at $remote_kvm_host_inventory."
-            exit 1
-        fi      
-
-        ansible all -i $remote_kvm_host_inventory -m ping
-        if [ $? -ne 0 ]; then
-            error "\nError: Ansible connectivity to remote KVM host failed.\n"
-            exit 1
-        fi
-        success "\nAnsible inventory generated: $remote_kvm_host_inventory\n"
-    
-    # Generate inventory from local QEMU connection LIBVIRT_DEFAULT_URI
-    elif [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        
+        kvm_user="${BASH_REMATCH[1]}"
+        kvm_host="${BASH_REMATCH[2]}"
+    elif [[ $LIBVIRT_DEFAULT_URI =~ ^qemu:///system$ ]]; then
         info_y "\nINFO: Generating ansible inventory for local KVM host: $LIBVIRT_DEFAULT_URI\n"
-
-cat <<EOF > "$local_kvm_host_inventory"
-all:
-  hosts:
-    localhost:
-      ansible_connection: local
-      ansible_user: $USER
-EOF
-
-        if [[ $? -ne 0 ]]; then
-            echo "Error: Failed to create Ansible inventory file at $local_kvm_host_inventory."
-            exit 1
-        fi      
-
-        ansible all -i $local_kvm_host_inventory -m ping
-        if [ $? -ne 0 ]; then
-            error "\nError: Ansible connectivity to remote KVM host failed.\n"
-            exit 1
-        fi
-        success "\nAnsible inventory generated: $local_kvm_host_inventory\n"
+        kvm_user=$USER
+        kvm_host=localhost
     else
-        error "\nError: LIBVIRT_DEFAULT_URI is not a valid remote KVM URI.\n"
+        error "\nERROR: LIBVIRT_DEFAULT_URI is not a valid remote KVM URI.\n"
         exit 1
     fi
+    
+    if [ -f $tmp_inventory_file ]; then
+        info_y "\nINFO: Removing existing inventory file: $tmp_inventory_file\n"
+        rm -f $tmp_inventory_file
+    fi
+    
+    if [ $kvm_user != "root" ];then
+        escalate_previliges="yes"
+    else
+        escalate_previliges="no"
+    fi
+    ansible localhost -m template --args "src=scripts/inventory.j2 dest=$tmp_inventory_file" \
+        -e kvm_user="$kvm_user" \
+        -e kvm_host="$kvm_host" \
+        -e escalate_previliges="$escalate_previliges" \
+        --connection=local
+
+
+    if [[ $? -ne 0 ]]; then
+        error "\nError: Failed to create Ansible inventory file at $tmp_inventory_file.\n"
+        exit 1
+    fi      
+
+    ansible all -i $tmp_inventory_file -m ping
+    if [ $? -ne 0 ]; then
+        error "\nError: Ansible connectivity to remote KVM host failed.\n"
+        exit 1
+    fi
+    cp $tmp_inventory_file $inventory_file
+    success "\nAnsible inventory generated: $inventory_file\n"
 }
 
 function user_consent(){
@@ -215,9 +316,25 @@ function user_consent(){
     pause
 }
 
+function set_kvm_host_inventory(){
+    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh://([^@]+)@([^/]+)/system$ ]]; then
+        export KVM_HOST_INVENTORY="$remote_kvm_host_inventory"
+        export KVM_HOST_ANSIBLE_NAME="remote-kvm-host"
+    elif [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
+        export KVM_HOST_INVENTORY="$local_kvm_host_inventory"
+        export KVM_HOST_ANSIBLE_NAME="localhost"
+    else
+        error "\nERROR: LIBVIRT_DEFAULT_URI is not set properly for KVM host inventory.\n"
+        exit 1
+    fi
+    info_y "\nINFO: KVM Host Ansible Inventory: $KVM_HOST_INVENTORY\n"
+    info_y "INFO: KVM Host Ansible Name: $KVM_HOST_ANSIBLE_NAME\n"
+}
+
 function install_kvm_host_dependencies(){
+    generate_kvm_host_inventory
     info_y "\nINFO: Installing KVM host dependencies...\n"
-    ansible-playbook ansible/hypervisor/install-kvm.yml
+    ansible-playbook -i $inventory_file ansible/hypervisor/install-kvm.yml
     if [[ $? -ne 0 ]]; then
         error "\nERROR: KVM host dependencies installation failed.\n"
         exit 1

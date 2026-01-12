@@ -5,7 +5,7 @@ all:
       ansible_user: root
       ansible_connection: ssh
   vars:
-    ansible_python_interpreter: /usr/bin/python3.12
+    ansible_python_interpreter: /usr/bin/python3
     ansible_become: true
     ansible_become_method: sudo
     ansible_become_user: root

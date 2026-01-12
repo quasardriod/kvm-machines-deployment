@@ -1,0 +1,9 @@
+[kvm_hypervisor]
+{% if kvm_host == "localhost" -%}
+localhost ansible_connection=local ansible_user={{ kvm_user }}{% if escalate_previliges|bool %} ansible_become=true{% endif %}
+{% else -%}
+{{ kvm_host }} ansible_user={{ kvm_user }} ansible_connection=ssh{% if escalate_previliges|bool %} ansible_become=true{% endif %}
+{% endif %}
+
+[kvm_hypervisor:vars]
+ansible_python_interpreter=/usr/bin/python3

@@ -1,8 +1,6 @@
 ---
 - name: Install KVM packages and setup KVM host
-  hosts: localhost
-  connection: local
-  become: true
+  hosts: all
   gather_facts: true
 
   vars:
@@ -18,7 +16,6 @@
       - libguestfs-tools
       - dmidecode
       - net-tools
-      - vim
       - guestfs-tools
       - openssh-askpass
       # - epel-release
@@ -29,7 +26,35 @@
     - name: Install KVM related packages on RedHat Based systems
       ansible.builtin.dnf:
         name: "{{ kvm_packages }}"
-      when: ansible_os_family == "RedHat"
+      when: ansible_os_family == "RedHat" and ansible_pkg_mgr in ["dnf", "yum", "microdnf", "dnf5"]
+
+    - name: Install KVM related packages on RedHat based automic hosts
+      ansible.builtin.command:
+        cmd: rpm-ostree install {{ kvm_packages | join(' ') }} --allow-inactive
+      when: ansible_os_family == "RedHat" and ansible_pkg_mgr == "atomic_container"
+      register: _rpm_ostree_install
+      changed_when: "'Downloading' in _rpm_ostree_install.stdout or 'Installing' in _rpm_ostree_install.stdout"
+
+    - name: Ask user if they want to reboot now after rpm-ostree install
+      ansible.builtin.pause:
+        prompt: "rpm-ostree packages installed. A reboot is required to apply changes else Abort playbook. Reboot now? (y/n): "
+      register: _reboot_answer
+      when: _rpm_ostree_install is defined and _rpm_ostree_install is changed
+    
+    - name: Set reboot decision fact
+      ansible.builtin.set_fact:
+        reboot_decision: "{{ _reboot_answer.user_input | lower == 'y' }}"
+      when: _rpm_ostree_install is defined and _rpm_ostree_install is changed
+    
+    - name: Reboot after rpm-ostree install on Silverblue
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+      when: reboot_decision is defined and reboot_decision | default(false)
+
+    - name: Abort playbook if reboot not confirmed
+      ansible.builtin.fail:
+        msg: "Reboot is required to apply rpm-ostree package changes. Aborting playbook as per user choice."
+      when: reboot_decision is defined and not reboot_decision | default(true)
 
     - name: Start libvirtd
       ansible.builtin.systemd:
