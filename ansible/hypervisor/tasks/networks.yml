@@ -18,41 +18,71 @@
   - ansible_os_family == "RedHat"
   - "'default' in virt_install_list_networks.stdout_lines"
 
-- name: networks | Ensure default network properties are as expected
+- name: networks | Check default network bridge property
   ansible.builtin.shell: |
-    default_network_dump="$(virsh net-dumpxml default)"
-    if ! echo "$default_network_dump" | grep -q "bridge name='{{ default_network_expected_bridge }}'"; then
-      echo "ERROR: The bridge for default network is not as expected '{{ default_network_expected_bridge }}'"; exit 1;
-    fi
-    if ! echo "$default_network_dump" | grep -q "forward mode='{{ default_network_expected_forward_mode }}'"; then
-      echo "ERROR: The forward mode for default network is not as expected '{{ default_network_expected_forward_mode }}'"; exit 1;
-    fi
-    if ! echo "$default_network_dump" | grep -q "ip address='{{ default_network_expected_gw }}'"; then
-      echo "ERROR: The gateway for default network is not as expected '{{ default_network_expected_gw }}'"; exit 1;
-    fi
-    if ! echo "$default_network_dump" | grep -q "netmask='{{ default_network_expected_netmask }}'"; then
-      echo "ERROR: The netmask for default network is not as expected '{{ default_network_expected_netmask }}'"; exit 1;
-    fi
-    echo "The default network properties are as expected"
+    virsh net-dumpxml default | grep -q "bridge name='{{ KVM_NETWORKS[0].bridge }}'"
   changed_when: false
   when:
   - ansible_os_family == "RedHat"
   - "'default' in virt_install_list_networks.stdout_lines"
-  vars:
-    default_network_expected_bridge: "{{ KVM_NETWORKS[0].bridge }}"
-    default_network_expected_forward_mode: "{{ KVM_NETWORKS[0].forward_mode }}"
-    default_network_expected_gw: "{{ KVM_NETWORKS[0].gw }}"
-    default_network_expected_netmask: "{{ KVM_NETWORKS[0].netmask }}"
   ignore_errors: true
+  register: check_default_bridge
+
+- name: networks | Check default network forward mode property
+  ansible.builtin.shell: |
+    virsh net-dumpxml default | grep -q "forward mode='{{ KVM_NETWORKS[0].forward_mode }}'"
+  changed_when: false
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+  ignore_errors: true
+  register: check_default_forward_mode
+
+- name: networks | Check default network gateway property
+  ansible.builtin.shell: |
+    virsh net-dumpxml default | grep -q "ip address='{{ KVM_NETWORKS[0].gw }}'"
+  changed_when: false
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+  ignore_errors: true
+  register: check_default_gw
+
+- name: networks | Check default network netmask property
+  ansible.builtin.shell: |
+    virsh net-dumpxml default | grep -q "netmask='{{ KVM_NETWORKS[0].netmask }}'"
+  changed_when: false
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+  ignore_errors: true
+  register: check_default_netmask
+
+- name: networks | Ensure default network properties are as expected
+  ansible.builtin.assert:
+    that:
+    - check_default_bridge is succeeded
+    - check_default_forward_mode is succeeded
+    - check_default_gw is succeeded
+    - check_default_netmask is succeeded
+    fail_msg: "Default network properties do not match expected values"
+    success_msg: "The default network properties are as expected"
   register: default_network_properties_check
+  ignore_errors: true
+  when:
+  - ansible_os_family == "RedHat"
+  - "'default' in virt_install_list_networks.stdout_lines"
+
+- debug:
+    var: default_network_properties_check
 
 - name: networks | Set fact delete_default_network
   ansible.builtin.set_fact:
     delete_default_network: true
   when:
   - ansible_os_family == "RedHat"
-  - default_network_properties_check is not skipped
-  - "'failed' in default_network_properties_check"
+  - default_network_properties_check.msg is defined and 
+    default_network_properties_check.msg is search("do not match expected values")
 
 - name: networks | Delete default network if properties do not match expected values
   ansible.builtin.include_tasks: include/delete-network.yml

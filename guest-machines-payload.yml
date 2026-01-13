@@ -47,6 +47,7 @@ cloud_config:
     - [ bash, /usr/local/bin/configure-interfaces.sh ]
     - rm -rf /usr/local/bin/configure-interfaces.sh
     - chmod 644 /etc/netplan/50-cloud-init.yaml
+    - dnf install -y qemu-guest-agent
 
 # Based on networks list, nics will be created in the order of networks list
 kvm_guest_machines:
@@ -58,7 +59,7 @@ kvm_guest_machines:
   disk_size: 10
   networks:
   - default
-  - dataplane
-  - external
+  # - dataplane
+  # - external
   cloud_user: "{{ cloud_config.cloud_user }}"
   user_data: "{{ cloud_config.user_data }}"

@@ -94,10 +94,29 @@ function assert_remote_kvm_for_virsh(){
         username=$(echo $LIBVIRT_DEFAULT_URI | sed -E 's/^qemu\+ssh:\/\/([^@]+)@.+\/system$/\1/')
         kvm_host=$(echo $LIBVIRT_DEFAULT_URI | sed -E 's/^qemu\+ssh:\/\/[^@]+@(.+)\/system$/\1/')
         
+        if [[ $username != "root" ]]; then
+            error "\nRemote KVM connection must use root user. Current user: $username\n"
+            exit 1
+        fi
+
         info "INFO: Checking SSH connection for virsh command on remote KVM host: $kvm_host with user: $username\n"
         if ! ssh -o BatchMode=yes -o ConnectTimeout=5 $username@$kvm_host 'command -v virsh' &> /dev/null; then
             error "\nvirsh command not found on remote KVM host $kvm_host. Please check.\n"
             exit 1
+        fi
+
+        # Test actual virsh connection to detect polkit authentication issues
+        if ! ssh -o BatchMode=yes -o ConnectTimeout=5 $username@$kvm_host 'virsh --connect qemu:///system list' &> /dev/null; then
+            if ssh -o BatchMode=yes -o ConnectTimeout=5 $username@$kvm_host 'virsh --connect qemu:///system list' 2>&1 | grep -q 'polkit\|authentication unavailable'; then
+                error "\n❌ Authentication error: polkit agent not available on remote host.\n"
+                info_y "Solutions:\n"
+                info_y "1. Connect as root user (recommended):\n"
+                info_y "   export LIBVIRT_DEFAULT_URI=\"qemu+ssh://root@$kvm_host/system\"\n\n"
+                info_y "2. Or configure sudoers on remote host to allow libvirt commands without password:\n"
+                info_y "   On $kvm_host, add to /etc/sudoers.d/libvirt-sudoers:\n"
+                info_y "   $username ALL=(ALL) NOPASSWD: /usr/bin/virsh\n"
+                exit 1
+            fi
         fi
     fi
 }

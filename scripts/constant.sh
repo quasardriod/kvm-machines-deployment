@@ -300,7 +300,7 @@ function generate_kvm_host_inventory(){
     success "\nAnsible inventory generated: $inventory_file\n"
 }
 
-function user_consent(){
+function image_store_user_consent(){
     local inventory_file=$1
     local ansible_host=$2
 

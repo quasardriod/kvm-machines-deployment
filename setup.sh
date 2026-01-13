@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# set -eo pipefail
+set -eo pipefail
 # User provided yaml file to overwrite IMAGE_STORE location
 
 # set -x
@@ -10,8 +10,8 @@ source scripts/constant.sh
 source scripts/assert.sh
 
 # Vars for remote KVM host
-remote_kvm_host_inventory="inventory/kvm-remote.yml"
-local_kvm_host_inventory="inventory/kvm-local.yml"
+# remote_kvm_host_inventory="inventory/kvm-remote.yml"
+# local_kvm_host_inventory="inventory/kvm-local.yml"
 
 
 function pre_checks(){
@@ -22,30 +22,13 @@ function pre_checks(){
     assert_ssh_keygen_installed
     assert_virsh_installed
     assert_libvirt_uri_connection
-    set_virsh_cli
+    # set_virsh_cli
 }
-
-# Run pre-checks
-if [[ ! " $@ " =~ " -h" ]] || [[ ! " $@ " =~ " --help" ]]; then
-    pre_checks
-elif [[ ! " $@ " =~ " -k" ]]; then
-    pre_checks
-    assert_remote_kvm_for_virsh
-fi
 
 function prepare_kvm_host(){
     set_virsh_connection
-    
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        ansible-playbook -i $local_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
+    ansible-playbook -i $inventory_file ansible/hypervisor/pb-prepare-kvm.yml \
         $default_vars_override_option
-    fi
-
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        remote_kvm
-        ansible-playbook -i $remote_kvm_host_inventory ansible/hypervisor/pb-prepare-kvm.yml \
-        $default_vars_override_option
-    fi
 }
 
 function show_final_info(){
@@ -149,111 +132,104 @@ function main(){
     guest_machines_payload=$1
     [ ! -f $guest_machines_payload ] && echo "File $guest_machines_payload not found" && exit 1
     
-    set_virsh_connection
+    info "\nINFO: Building KVM guest machines as per $guest_machines_payload\n"
+    info "\nINFO: Using KVM Host Inventory: $inventory_file\n"
+
+    # Get KVM host IP or hostname from inventory file
+    kvm_host=$(ansible-inventory -i $inventory_file --list -y|yq '.all.children.kvm_hypervisor.hosts|keys[0]')
+    build_artifacts="/tmp/artifacts/kvm_${kvm_host}"
+    info_y "\nINFO: Target KVM Host: $kvm_host\n"
+    info_y "\nINFO: Build Artifacts will be stored on Ansible Controller at: $build_artifacts\n"
+    info_y "\nBuild artifacts on KVM host: $(yq .kvm_artifacts_dir inventory/group_vars/all.yml)\n"
 
     # Artifacts location on ansible controller
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        build_artifacts="/tmp/artifacts/kvm_local"
-    fi
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        build_artifacts="/tmp/artifacts/kvm_remote"
-    fi
-
     [[ ! -d $build_artifacts ]] && mkdir -p $build_artifacts
-
-    info_y "Build artifacts on Ansible Controller: $build_artifacts\n"
-    info_y "Build artifacts on KVM host: $(yq .kvm_artifacts_dir inventory/group_vars/all.yml)\n"
-
-    build_pb="ansible/build-guests/pb-build-guest.yml"
-      
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-
-        if [ ! -f $local_kvm_host_inventory ]; then
-            error "\nERROR: $local_kvm_host_inventory not found\n"
-            exit 1
-        fi
-        
-        user_consent $local_kvm_host_inventory localhost
-
-        # Call playbook to start building machines        
-        ansible-playbook -i $local_kvm_host_inventory $build_pb \
-        -e @$guest_machines_payload $default_vars_override_option \
-        -e build_artifacts=$build_artifacts
-
-        if [ $? -ne 0 ]; then
-            error "\nERROR: Failed to build machines\n"
-            exit 1
-        fi
-
-        # For now guest OS update supported only when VMs built on local KVM host
-        update_guest_os
-
-        # Prompt user to take a snapshot of the new machine
-        read -p "Do you want to take a snapshot of the newly created machines? [y/N]: " take_snapshot
-        if [[ ${take_snapshot,,} == "y" ]] || [[ ${take_snapshot,,} == "yes" ]]; then
-            info "\nINFO: Taking snapshot of the newly created machines\n"
-            # Shutdown the machines before taking snapshot
-            info "\nINFO: Shutdown the machines before taking snapshot\n"
-            operation="Shutdown"
-            guests_lcm
-
-            # Take snapshot of the new created machines
-            operation="Snapshot"
-            guests_lcm
-
-            # Start the machines after snapshot
-            operation="Start"
-            guests_lcm
-        else
-            info "\nINFO: Skipping snapshot creation...\n"
-        fi
-    fi
     
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        if [ ! -f $remote_kvm_host_inventory ]; then
-            error "\nERROR: $remote_kvm_host_inventory not found\n"
-            exit 1
-        fi
+    build_pb="ansible/build-guests/pb-build-guest.yml"
 
-        ansible-playbook -i $remote_kvm_host_inventory $build_pb \
-        -e @$guest_machines_payload -e "build_artifacts=$build_artifacts" \
-        $default_vars_override_option
+    # Prompt user for users to review and consent to image store location
+    image_store_user_consent $inventory_file $kvm_host
 
-        if [ $? -ne 0 ]; then
-            error "\nERROR: Failed to build machines\n"
-            exit 1
-        fi
+    # Call playbook to start building machines
+    info "\nINFO: Starting to build KVM guest machines...\n"    
+    ansible-playbook -i $inventory_file $build_pb \
+    -e @$guest_machines_payload $default_vars_override_option \
+    -e build_artifacts=$build_artifacts
 
-        info_y "\nAlert: Guest OS update is not supported on remote KVM host\n" 
-        
-        # Shutdown the machines before taking snapshot
-        info "\nINFO: Shutdown the machines before taking snapshot\n"
-        operation="Shutdown"
-        guests_lcm
-
-        # Take snapshot of the new created machines
-        operation="Snapshot"
-        guests_lcm
-
-        # Start the machines after snapshot
-        operation="Start"
-        guests_lcm
+    if [ $? -ne 0 ]; then
+        error "\nERROR: Failed to build machines\n"
+        exit 1
     fi
 
-    # Always run at last
-    show_final_info $build_artifacts
+    #     # For now guest OS update supported only when VMs built on local KVM host
+    #     update_guest_os
 
-    # Show all IP addresses of the created machines
-    info_y "\nINFO: All IP addresses of the created machines\n"
-    for guest in $(yq eval '.kvm_guest_machines[]|.name' $guest_machines_payload); do
-        info_y "------------- $guest -------------------------\n"
-        $VIRSH_CMD domifaddr $guest
-        info_y "\n------------------------------------------------\n"
-    done
+    #     # Prompt user to take a snapshot of the new machine
+    #     read -p "Do you want to take a snapshot of the newly created machines? [y/N]: " take_snapshot
+    #     if [[ ${take_snapshot,,} == "y" ]] || [[ ${take_snapshot,,} == "yes" ]]; then
+    #         info "\nINFO: Taking snapshot of the newly created machines\n"
+    #         # Shutdown the machines before taking snapshot
+    #         info "\nINFO: Shutdown the machines before taking snapshot\n"
+    #         operation="Shutdown"
+    #         guests_lcm
+
+    #         # Take snapshot of the new created machines
+    #         operation="Snapshot"
+    #         guests_lcm
+
+    #         # Start the machines after snapshot
+    #         operation="Start"
+    #         guests_lcm
+    #     else
+    #         info "\nINFO: Skipping snapshot creation...\n"
+    #     fi
+    # fi
+    
+    # if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
+    #     if [ ! -f $remote_kvm_host_inventory ]; then
+    #         error "\nERROR: $remote_kvm_host_inventory not found\n"
+    #         exit 1
+    #     fi
+
+    #     ansible-playbook -i $remote_kvm_host_inventory $build_pb \
+    #     -e @$guest_machines_payload -e "build_artifacts=$build_artifacts" \
+    #     $default_vars_override_option
+
+    #     if [ $? -ne 0 ]; then
+    #         error "\nERROR: Failed to build machines\n"
+    #         exit 1
+    #     fi
+
+    #     info_y "\nAlert: Guest OS update is not supported on remote KVM host\n" 
+        
+    #     # Shutdown the machines before taking snapshot
+    #     info "\nINFO: Shutdown the machines before taking snapshot\n"
+    #     operation="Shutdown"
+    #     guests_lcm
+
+    #     # Take snapshot of the new created machines
+    #     operation="Snapshot"
+    #     guests_lcm
+
+    #     # Start the machines after snapshot
+    #     operation="Start"
+    #     guests_lcm
+    # fi
+
+    # # Always run at last
+    # show_final_info $build_artifacts
+
+    # # Show all IP addresses of the created machines
+    # info_y "\nINFO: All IP addresses of the created machines\n"
+    # for guest in $(yq eval '.kvm_guest_machines[]|.name' $guest_machines_payload); do
+    #     info_y "------------- $guest -------------------------\n"
+    #     $VIRSH_CMD domifaddr $guest
+    #     info_y "\n------------------------------------------------\n"
+    # done
 }
 
 function kvm_host_capabilities(){
-    set_virsh_connection
+    # set_virsh_connection
 
     # Show available images and properties
     info_y "\nKVM hypervisor capabilities:\n"
@@ -275,15 +251,18 @@ function kvm_host_capabilities(){
     for network in $($VIRSH_CMD net-list --all --name); do
         info_y "\n$network: -> dhcp lease: $($VIRSH_CMD net-dumpxml $network | grep -E range | xargs)"
     done
+    [ $? -ne 0 ] && error "\nERROR: Failed to list KVM networks\n" && exit 1
     echo
 
     info "\nShow KVM Host CPU:\n"
     info "---------------------\n"
     $VIRSH_CMD nodeinfo
+    [ $? -ne 0 ] && error "\nERROR: Failed to get KVM host CPU info\n" && exit 1
     
     info "\nShow KVM Host Memory:\n"
     info "---------------------\n"
     $VIRSH_CMD nodememstats
+    [ $? -ne 0 ] && error "\nERROR: Failed to get KVM host Memory info\n" && exit 1
 
     info "\nShow cloud-config default params\n"
     info "---------------------\n"
@@ -353,9 +332,13 @@ while getopts 'ihgkpl:b:n:' opt; do
                 usage
                 exit 1
             fi
+            pre_checks
+            generate_kvm_host_inventory
             main "$OPTARG"
             ;;
-        g) generate_kvm_host_inventory;;
+        g) 
+            pre_checks
+            generate_kvm_host_inventory;;
         n) 
             if [ -z "$OPTARG" ]; then
                 echo "Error: -n requires an argument."
@@ -365,7 +348,10 @@ while getopts 'ihgkpl:b:n:' opt; do
             additional_kvm_networks "$OPTARG"
             ;;
         h) usage;;
-        p) prepare_kvm_host;;
+        p) 
+            pre_checks
+            generate_kvm_host_inventory
+            prepare_kvm_host;;
         i) kvm_host_capabilities;;
         l) 
             if [ -z "$OPTARG" ]; then

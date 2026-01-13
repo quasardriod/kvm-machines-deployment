@@ -20,10 +20,10 @@ cloud_images:
 #   download_uri: "https://cloud-images.ubuntu.com/jammy/current/"
 #   images:
 #   - jammy-server-cloudimg-amd64.img
-# - variant: ubuntu24.04
-#   download_uri: "https://cloud-images.ubuntu.com/noble/current/"
-#   images:
-#   - noble-server-cloudimg-amd64.img
+- variant: ubuntu24.04
+  download_uri: "https://cloud-images.ubuntu.com/noble/current/"
+  images:
+  - noble-server-cloudimg-amd64.img
 
 VARIANTS: "{{ cloud_images | map(attribute='variant') | list }}"
 

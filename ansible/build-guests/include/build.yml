@@ -17,7 +17,7 @@
   ansible.builtin.debug:
     var: network_params
 
-- name: build | Create {{ vm.name }} VM when user data is not defined
+- name: build | Create {{ vm.name }} VM without user data
   ansible.builtin.shell: |
     virt-install --name {{ vm.name }} \
     --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \
@@ -30,7 +30,7 @@
   async: 600
   poll: 0
 
-- name: build | Create {{ vm.name }} VM when user data is defined
+- name: build | Create {{ vm.name }} VM with user data
   ansible.builtin.shell: |
     virt-install --name {{ vm.name }} \
     --ram {{ vm.ram }} --vcpus {{ vm.vcpu }} --cpu host \

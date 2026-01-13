@@ -28,12 +28,16 @@
         name: "{{ kvm_packages }}"
       when: ansible_os_family == "RedHat" and ansible_pkg_mgr in ["dnf", "yum", "microdnf", "dnf5"]
 
+    
     - name: Install KVM related packages on RedHat based automic hosts
       ansible.builtin.command:
         cmd: rpm-ostree install {{ kvm_packages | join(' ') }} --allow-inactive
       when: ansible_os_family == "RedHat" and ansible_pkg_mgr == "atomic_container"
       register: _rpm_ostree_install
       changed_when: "'Downloading' in _rpm_ostree_install.stdout or 'Installing' in _rpm_ostree_install.stdout"
+      failed_when: 
+        - _rpm_ostree_install.rc != 0
+        - "'already requested' not in _rpm_ostree_install.stderr"
 
     - name: Ask user if they want to reboot now after rpm-ostree install
       ansible.builtin.pause:
@@ -84,8 +88,8 @@
         name: kvm
       when: _kvm_mod.rc != 0
 
-    - name: Run virt-host-validate
-      ansible.builtin.command: virt-host-validate
+    - name: Run virt-host-validate qemu
+      ansible.builtin.command: virt-host-validate qemu
       register: _virt_validate
       ignore_errors: true
       changed_when: false
