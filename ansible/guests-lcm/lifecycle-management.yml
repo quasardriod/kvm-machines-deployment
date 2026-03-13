@@ -44,9 +44,15 @@
     loop_control:
       label: "{{ item.name }}"
 
+  # Shutshow the machine before taking snapshot, otherwise the snapshot will be taken in 'running' state, which is not expected.
   - name: lcm | Call include/snapshot.yml to take snapshot
-    include_tasks: include/snapshot.yml
+    include_tasks: "{{ item }}"
     when: operation == 'snapshot'
+    with_items:
+      - include/shutdown.yml
+      - include/snapshot.yml
+      - include/start.yml
+      
 
   - name: lcm | Call include/delete.yml to delete machines
     include_tasks: include/delete.yml
