@@ -111,21 +111,12 @@ function guests_lcm(){
     fi
     
     success "\nINFO: Performing operation: ${operation}\n"
-
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^^qemu:\/\/\/system$ ]]; then
-        ansible-playbook -i $local_kvm_host_inventory $lcm_pb \
-        -e @$guest_machines_payload -e operation=${operation,,} $default_vars_override_option
         
-        [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
-    fi
-    
-    if [[ $LIBVIRT_DEFAULT_URI =~ ^qemu\+ssh:\/\/root@.+\/system ]]; then
-        ansible-playbook -i $remote_kvm_host_inventory $build_pb -e @$guest_machines_payload \
+    ansible-playbook -i $inventory_file $lcm_pb -e @$guest_machines_payload \
         -e "inventory_artifact=$inventory_artifact" -e operation=${operation,,} \
         $default_vars_override_option
+    [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
 
-        [[ $? -ne 0 ]] && error "\nERROR: Failed to perform operation: $operation\n" && exit 1
-    fi
 }
 
 function main(){
@@ -358,7 +349,7 @@ while getopts 'ihgkpl:b:n:' opt; do
             ;;
         l) 
             if [ -z "$OPTARG" ]; then
-                echo "Error: -m requires an argument."
+                echo "Error: -l requires an argument."
                 usage
                 exit 1
             fi
