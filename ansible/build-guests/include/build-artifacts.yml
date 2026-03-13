@@ -30,7 +30,6 @@
       flat: yes
       fail_on_missing: yes
       mode: '0644'
-    when: inventory_hostname != "localhost"
 
   # - name: inventory artifacts | Copy artifacts on ansible controller in {{ deployer_artifacts_dir }}
   #   ansible.builtin.copy:
@@ -47,6 +46,9 @@
     delegate_to: localhost
     run_once: true
 
+  - debug:
+      var: inventory_stat
+    run_once: true
   - name: inventory artifacts | Run assert for fetched inventory artifact
     ansible.builtin.assert:
       that:

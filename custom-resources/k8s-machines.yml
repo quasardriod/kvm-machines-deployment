@@ -75,13 +75,13 @@ kvm_guest_machines:
   - default
   cloud_user: "{{ cloud_config.cloud_user }}"
   user_data: "{{ cloud_config.user_data }}"
-- name: k8s-worker3
-  variant: centos-stream9
-  cloud_image: ""
-  vcpu: 2
-  ram: 2048
-  disk_size: 10
-  networks:
-  - default
-  cloud_user: "{{ cloud_config.cloud_user }}"
-  user_data: "{{ cloud_config.user_data }}"
+# - name: k8s-worker3
+#   variant: centos-stream9
+#   cloud_image: ""
+#   vcpu: 2
+#   ram: 2048
+#   disk_size: 10
+#   networks:
+#   - default
+#   cloud_user: "{{ cloud_config.cloud_user }}"
+#   user_data: "{{ cloud_config.user_data }}"

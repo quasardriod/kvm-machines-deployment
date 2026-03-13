@@ -154,7 +154,7 @@ function main(){
     info "\nINFO: Starting to build KVM guest machines...\n"    
     ansible-playbook -i $inventory_file $build_pb \
     -e @$guest_machines_payload $default_vars_override_option \
-    -e build_artifacts=$build_artifacts
+    -e build_artifacts=$build_artifacts -b
 
     if [ $? -ne 0 ]; then
         error "\nERROR: Failed to build machines\n"
@@ -351,8 +351,11 @@ while getopts 'ihgkpl:b:n:' opt; do
         p) 
             pre_checks
             generate_kvm_host_inventory
-            prepare_kvm_host;;
-        i) kvm_host_capabilities;;
+            prepare_kvm_host
+            ;;
+        i)  pre_checks
+            kvm_host_capabilities
+            ;;
         l) 
             if [ -z "$OPTARG" ]; then
                 echo "Error: -m requires an argument."
